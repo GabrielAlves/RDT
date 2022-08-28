@@ -21,7 +21,7 @@ class Cliente:
         except:
             return print('\nNão foi possívvel se conectar ao servidor!\n')
 
-        # self.usuario = input('Usuário> ')
+        self.usuario = input('Usuário> ')
         print('\nConectado')
 
         thread1 = threading.Thread(target=self.receber_mensagens)
@@ -34,7 +34,7 @@ class Cliente:
             try:
                 mensagem = input('\n')
                 segmento = Segmento("", self.porta_de_destino, mensagem)
-                pacote = Pacote(self.ip_de_origem, self.ip_de_destino, segmento)
+                pacote = Pacote(self.ip_de_origem, self.ip_de_destino, segmento, self.usuario)
                 pacote_serializado = pickle.dumps(pacote)
                 self.cliente.send(pacote_serializado)
                 
@@ -48,7 +48,7 @@ class Cliente:
                 pacote = pickle.loads(pacote_serializado)
                 segmento = pacote.retornar_segmento()
                 mensagem = segmento.retornar_mensagem()
-                print(f"mensagem enviada por {pacote.retornar_ip_de_origem()}: {mensagem}\n")
+                print(f"mensagem enviada por {pacote.retornar_usuario()}: {mensagem}\n")
 
             except:
                 print('\nNão foi possível permanecer conectado no servidor!\n')
