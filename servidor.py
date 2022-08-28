@@ -2,6 +2,7 @@ import threading
 import socket
 from queue import Queue
 
+
 class Servidor:
     def __init__(self):
         self.clientes = []
@@ -15,16 +16,21 @@ class Servidor:
         try:
             servidor.bind(("127.0.0.1", 65432))
             servidor.listen()
+            print('Servidor ligado')
         except:
             return print('\nNão foi possível iniciar o servidor!\n')
 
         while True:
+
             cliente, endereco = servidor.accept()
-            
+
             self.clientes.append(cliente)
 
-            thread1 = threading.Thread(target=self.tratar_mensagens, args=[cliente])
+            thread1 = threading.Thread(
+                target=self.tratar_mensagens, args=[cliente])
             thread1.start()
+
+            self.listar_conectados()
 
     # def tratar_mensagens_na_fila(self):
     #     while not self.fila_de_mensagens.empty():
@@ -38,7 +44,6 @@ class Servidor:
     #         else:
     #             pass
 
-
     def tratar_mensagens(self, cliente):
         while True:
             try:
@@ -50,7 +55,6 @@ class Servidor:
                 self.remover_cliente(cliente)
                 break
 
-
     def enviar_para_todos(self, msg, cliente_emissor):
         for cliente in self.clientes:
             # if cliente != cliente_emissor:
@@ -58,10 +62,20 @@ class Servidor:
                 cliente.send(msg)
             except:
                 self.remover_cliente(cliente)
-
+                print('Removido:', cliente.getpeername())
 
     def remover_cliente(self, cliente):
         self.clientes.remove(cliente)
+        print('Removido:', cliente.getpeername())
+        self.listar_conectados()
+
+    def listar_conectados(self):
+        print('Conectados:')
+        if self.clientes != []:
+            for i in range(0, len(self.clientes)):
+                print(self.clientes[i].getpeername())
+        else: print('Ninguém')
+
 
 if __name__ == "__main__":
     Servidor()
