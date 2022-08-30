@@ -33,6 +33,8 @@ class Cliente:
         while True:
             try:
                 mensagem = input('\n')
+                comprimento = mensagem.encode("utf-8")
+
                 segmento = Segmento("", self.porta_de_destino, mensagem)
                 pacote = Pacote(self.ip_de_origem, self.ip_de_destino, segmento)
                 pacote_serializado = pickle.dumps(pacote)

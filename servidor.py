@@ -5,12 +5,6 @@ from queue import Queue
 
 class Servidor:
     def __init__(self):
-        self.clientes = []
-        self.fila_de_mensagens = Queue()
-
-        # thread2 = threading.Thread(target = self.tratar_mensagens_na_fila)
-        # thread2.start()
-
         servidor = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
         try:
@@ -20,42 +14,46 @@ class Servidor:
         except:
             return print('\nNão foi possível iniciar o servidor!\n')
 
+        self.clientes = []
+        self.fila_de_pacotes = Queue()
+        thread = threading.Thread(target = self.tratar_pacotes_na_fila)
+        thread.start()
+
         while True:
-
             cliente, endereco = servidor.accept()
-
             self.clientes.append(cliente)
 
-            thread1 = threading.Thread(
-                target=self.tratar_mensagens, args=[cliente])
-            thread1.start()
+            thread2 = threading.Thread(target=self.receber_pacote, args=[cliente])
+            thread2.start()
 
             self.listar_conectados()
 
-    # def tratar_mensagens_na_fila(self):
-    #     while not self.fila_de_mensagens.empty():
-    #         mensagem = self.fila_de_mensagens.get()
-    #         print(f"O que fazer com a mensagem {self.fila_de_mensagens.get()}")
-    #         decisao = int(input(f"Corromper pacote?(1/0)"))
+    def tratar_pacotes_na_fila(self):
+        while True:
+            if not self.fila_de_pacotes.empty():
+                pacote = self.fila_de_pacotes.get()
+                print(f"O que fazer com a mensagem ")
+                decisao = int(input(f"Corromper pacote?(1/0)"))
 
-    #         if decisao == 1:
-    #             pass
+                if decisao == 1:
+                    pass
 
-    #         else:
-    #             pass
+                else:
+                    self.enviar_para_todos(pacote)
 
-    def tratar_mensagens(self, cliente):
+    def receber_pacote(self, cliente):
         while True:
             try:
-                msg = cliente.recv(10000)
-                self.fila_de_mensagens.put(msg)
+                pacote = cliente.recv(10000)
+                self.fila_de_pacotes.put(pacote)
+                # print(f"mensagem {msg} colocada na fila")
 
-                self.enviar_para_todos(msg, cliente)
+                # self.enviar_para_todos(msg, cliente)
             except:
                 self.remover_cliente(cliente)
                 break
 
-    def enviar_para_todos(self, msg, cliente_emissor):
+    def enviar_para_todos(self, msg):
         for cliente in self.clientes:
             # if cliente != cliente_emissor:
             try:
