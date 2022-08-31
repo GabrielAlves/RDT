@@ -77,9 +77,10 @@ class Cliente:
                         Pacote(self.ip_de_origem, self.ip_de_destino, segmentos[i]))
                     pacotes_serializados.append(pickle.dumps(pacotes[i]))
 
-                for pacote in pacotes_serializados:
-                    self.cliente.send(pacote)
-
+                for i in range(0, len(pacotes_serializados)):
+                    while self.receber_mensagens().ack == pacotes_serializados[i].ack: # enquanto -> ta errado
+                        self.cliente.send(pacotes_serializados[i]) # 0
+                         
                 # for i in range(0, len(segmentos)):
                 #     print(segmentos[i].__dict__)
                 # segmento = Segmento("", self.porta_de_destino, mensagem)
@@ -99,8 +100,9 @@ class Cliente:
                 pacote = pickle.loads(pacote_serializado)
                 segmento = pacote.retornar_segmento()
                 mensagem = segmento.retornar_mensagem()
-                print(
-                    f"mensagem enviada por {pacote.retornar_ip_de_origem()}: {mensagem}\n")
+                
+                # print(
+                #    f"mensagem enviada por {pacote.retornar_ip_de_origem()}: {mensagem}\n")
 
             except:
                 print('\nNão foi possível permanecer conectado no servidor!\n')
