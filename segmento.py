@@ -1,12 +1,12 @@
 class Segmento:
-    def __init__(self, _porta_de_origem, _porta_de_destino, _mensagem):
+    def __init__(self, _porta_de_origem, _porta_de_destino, _mensagem, _num_de_sequencia):
         self.__porta_de_origem = _porta_de_origem
         self.__porta_de_destino = _porta_de_destino
         self.__mensagem = _mensagem
         self.__comprimento = 8 + self.contar_bytes_da_mensagem(_mensagem)
         self.__checksum = self.calcular_checksum(_mensagem)
         # self.ack = 0 # passar como argumento
-        # self.num_de_sequencia
+        self.num_de_sequencia = _num_de_sequencia
 
     def contar_bytes_da_mensagem(self, mensagem):
         return len(mensagem.encode("utf-8"))
