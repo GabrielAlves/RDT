@@ -39,14 +39,14 @@ class Servidor:
         while True:
             if not self.fila_de_pacotes.empty():
                 pacote = self.fila_de_pacotes.get()
-                print(f"O que fazer com a mensagem ")
-                decisao = int(input(f"Corromper pacote?(1/0)"))
+                # print(f"O que fazer com a mensagem ")
+                # decisao = int(input(f"Corromper pacote?(1/0)"))
 
-                if decisao == 1:
-                    pass
+                # if decisao == 1:
+                #     pass
 
-                else:
-                    self.enviar_para_todos(pacote)
+                # else:
+                self.enviar_para_todos(pacote)
 
     def receber_pacote(self, cliente):
         while True:
