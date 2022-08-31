@@ -62,14 +62,12 @@ class Cliente:
                 msg_binario = "".join([self.formatar_em_n_bits(
                     bin(ord(caractere))[2:], 8) for caractere in mensagem])
 
-<<<<<<< HEAD
                 segmento = Segmento(self.porta_de_origem, self.porta_de_destino, mensagem)
                 pacote = Pacote(self.ip_de_origem, self.ip_de_destino, segmento)
                 pacote_serializado = pickle.dumps(pacote)
                 self.cliente.send(pacote_serializado)
                 
             except:
-=======
                 tamanho_da_mensagem = 32
                 # mensagem_split = [mensagem[i:i + 4]
                 # for i in range(0, len(mensagem), 4)]
@@ -91,11 +89,6 @@ class Cliente:
                 # pacote = Pacote(self.ip_de_origem, self.ip_de_destino, segmento)
                 # pacote_serializado = pickle.dumps(pacote)
                 # self.cliente.send(pacote_serializado)
-
-            except Exception as e:
-                print(e)
->>>>>>> 4bb96fb37ca596d6bfc96c93d6374dbc7056732e
-                return
 
     def receber_mensagens(self):
         while True:
