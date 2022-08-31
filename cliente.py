@@ -11,6 +11,7 @@ class Cliente:
         self.ip_de_origem = socket.gethostbyname(self.nome_do_computador)
         self.ip_de_destino = "127.0.0.1"  # Trocar pelo ip do computador C
         self.porta_de_destino = 65432
+        self.porta_de_origem = -1
         self.comprimento_do_buffer = 10000
 
         self.cliente = socket.socket(socket.AF_INET, socket.SOCK_STREAM)   
@@ -24,6 +25,8 @@ class Cliente:
         # self.usuario = input('Usuário> ')
         print('\nConectado')
 
+        self.receber_porta_de_origem_do_servidor()
+
         thread1 = threading.Thread(target=self.receber_mensagens)
         thread2 = threading.Thread(target=self.enviar_mensagens)
         thread1.start()
@@ -35,7 +38,7 @@ class Cliente:
                 mensagem = input('\n')
                 comprimento = mensagem.encode("utf-8")
 
-                segmento = Segmento("", self.porta_de_destino, mensagem)
+                segmento = Segmento(self.porta_de_origem, self.porta_de_destino, mensagem)
                 pacote = Pacote(self.ip_de_origem, self.ip_de_destino, segmento)
                 pacote_serializado = pickle.dumps(pacote)
                 self.cliente.send(pacote_serializado)
@@ -58,6 +61,19 @@ class Cliente:
                 self.cliente.close()
                 break
 
+    def receber_porta_de_origem_do_servidor(self):
+        while True:
+            try:
+                self.porta_de_origem = int(self.cliente.recv(self.comprimento_do_buffer).decode())
+                print(type(self.porta_de_origem))
+                print(self.porta_de_origem)
+                break
+
+            except:
+                print('\nNão foi possível permanecer conectado no servidor!\n')
+                print('Pressione <Enter> Para continuar...')
+                self.cliente.close()
+                break
 
 if __name__ == "__main__":
     Cliente()

@@ -23,10 +23,17 @@ class Servidor:
             cliente, endereco = servidor.accept()
             self.clientes.append(cliente)
 
+            self.enviar_porta_de_origem_para_cliente(cliente)
+
             thread2 = threading.Thread(target=self.receber_pacote, args=[cliente])
             thread2.start()
 
             self.listar_conectados()
+
+    def enviar_porta_de_origem_para_cliente(self, cliente):
+        porta = str(cliente.getpeername()[1])
+        cliente.send(porta.encode())
+
 
     def tratar_pacotes_na_fila(self):
         while True:
