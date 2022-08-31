@@ -62,12 +62,6 @@ class Cliente:
                 msg_binario = "".join([self.formatar_em_n_bits(
                     bin(ord(caractere))[2:], 8) for caractere in mensagem])
 
-                segmento = Segmento(self.porta_de_origem, self.porta_de_destino, mensagem)
-                pacote = Pacote(self.ip_de_origem, self.ip_de_destino, segmento)
-                pacote_serializado = pickle.dumps(pacote)
-                self.cliente.send(pacote_serializado)
-                
-            except:
                 tamanho_da_mensagem = 32
                 # mensagem_split = [mensagem[i:i + 4]
                 # for i in range(0, len(mensagem), 4)]
@@ -78,17 +72,24 @@ class Cliente:
 
                 for i in range(0, len(msg_binario_split)):
                     segmentos.append(
-                        Segmento("", self.porta_de_destino, msg_binario_split[i], self.definir_num_seq()))
+                        Segmento(self.porta_de_origem, self.porta_de_destino, msg_binario_split[i], self.definir_num_seq()))
                     pacotes.append(
                         Pacote(self.ip_de_origem, self.ip_de_destino, segmentos[i]))
                     pacotes_serializados.append(pickle.dumps(pacotes[i]))
 
-                for i in range(0, len(segmentos)):
-                    print(segmentos[i].__dict__)
+                for pacote in pacotes_serializados:
+                    self.cliente.send(pacote)
+
+                # for i in range(0, len(segmentos)):
+                #     print(segmentos[i].__dict__)
                 # segmento = Segmento("", self.porta_de_destino, mensagem)
                 # pacote = Pacote(self.ip_de_origem, self.ip_de_destino, segmento)
                 # pacote_serializado = pickle.dumps(pacote)
                 # self.cliente.send(pacote_serializado)
+
+            except Exception as e:
+                print(e)
+                return
 
     def receber_mensagens(self):
         while True:
@@ -120,6 +121,9 @@ class Cliente:
                 print('Pressione <Enter> Para continuar...')
                 self.cliente.close()
                 break
+
+            
+
 
 if __name__ == "__main__":
     Cliente()
