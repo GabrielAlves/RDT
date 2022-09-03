@@ -11,16 +11,18 @@ class Cliente:
     def __init__(self):
         self.nome_do_computador = socket.gethostname()
         self.ip_de_origem = socket.gethostbyname(self.nome_do_computador)
-        self.ip_de_destino = "127.0.0.1"  # Trocar pelo ip do computador C
+        self.ip_de_destino = self.ip_de_origem  # Trocar pelo ip do computador C
         self.porta_de_destino = 65432
         self.porta_de_origem = -1
         self.comprimento_do_buffer = 10000
         self.num_sequencia = 0
         self.mensagem = ""
+        self.reenvio = False
         self.cliente = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.tempo_de_reenvio = 3
 
         try:
-            self.cliente.connect(("127.0.0.1", self.porta_de_destino))
+            self.cliente.connect((self.ip_de_origem, self.porta_de_destino))
 
         except:
             return print('\nNão foi possívvel se conectar ao servidor!\n')
@@ -79,11 +81,20 @@ class Cliente:
     
                 
                 for i in range(0, len(pacotes_serializados)):
-                    ack = self.num_sequencia
-                    while ack == self.num_sequencia: # envia enquanto o ack recebido != num seq enviado
-                        self.cliente.send(pacotes_serializados[i])
-                        time.sleep(1)
-                        ack = self.receber_mensagens()
+                    self.cliente.send(pacotes_serializados[i])
+                    ack_anterior = self.num_sequencia
+                    
+                    tempo_inicial = time.time()
+                    while ack_anterior == self.num_sequencia: # envia enquanto o ack recebido != num seq enviado
+                        if time.time() - tempo_inicial >= self.tempo_de_reenvio:
+                            self.reenvio = True
+                            tempo_inicial = time.time()
+
+                        if self.reenvio:
+                            self.cliente.send(pacotes_serializados[i])
+                            self.reenvio = False
+
+                        # time.sleep(1)
 
             except Exception as e:
                 print(e)
@@ -94,19 +105,33 @@ class Cliente:
             try:
                 pacote_serializado = self.cliente.recv(self.comprimento_do_buffer)
                 pacote = pickle.loads(pacote_serializado)
+                
 
                 segmento = pacote.retornar_segmento()
                 mensagem_recebida = segmento.retornar_mensagem()
-                
-                self.mensagem = self.mensagem + mensagem_recebida
+
+                # print(f"mensagem recebida: {mensagem_recebida}")
+
+                if mensagem_recebida:
+                    self.mensagem = self.mensagem + mensagem_recebida
+
+                else:
+                    ack = segmento.retornar_ack()
+                    num_de_sequencia = segmento.retornar_num_de_sequencia()
+                    
+                    if ack == num_de_sequencia:
+
+                        # self.reenvio = False
+                        self.definir_num_seq()
+
+                    else:
+
+                        self.reenvio = True
 
                 if pacote.is_ultimo():
+                    print(self.mensagem)
                     self.mensagem = ""
-
-
-
-                print(self.mensagem)
-                return segmento.retornar_ack()
+                
 
             except:
                 print('\nNão foi possível permanecer conectado no servidor!\n')

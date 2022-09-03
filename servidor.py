@@ -1,25 +1,32 @@
-from operator import index
 import threading
 import socket
 from queue import Queue
 import pickle
-
+from segmento import Segmento
+from pacote import Pacote
 
 class Servidor:
     def __init__(self):
         servidor = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.nome_do_computador = socket.gethostname()
+        self.ip = socket.gethostbyname(self.nome_do_computador)
+        self.menu = '''O que fazer com a mensagem?
+                  0 -> Envia a mensagem normalmente.
+                  1 -> Corrompe pacote.
+                  2 -> Não envia ACK de volta.    
+                '''
 
         try:
-            servidor.bind(("127.0.0.1", 65432))
+            servidor.bind((self.ip, 65432))
             servidor.listen()
             print('Servidor ligado')
         except:
             return print('\nNão foi possível iniciar o servidor!\n')
 
         self.clientes = {}
-        self.fila_de_pacotes = Queue()
-        thread = threading.Thread(target=self.tratar_pacotes_na_fila)
-        thread.start()
+        # self.fila_de_pacotes = Queue()
+        # thread = threading.Thread(target=self.tratar_pacotes_na_fila)
+        # thread.start()
 
         while True:
             cliente, endereco = servidor.accept()
@@ -37,28 +44,70 @@ class Servidor:
         porta = str(cliente.getpeername()[1])
         cliente.send(porta.encode())
 
-    def tratar_pacotes_na_fila(self):
-        while True:
-            if not self.fila_de_pacotes.empty():
-                pacote = self.fila_de_pacotes.get()
-                print(f"O que fazer com a mensagem ")
-                decisao = int(input(f"Corromper pacote?(1/0)"))
-            
-                if decisao == 1:
-                    self.corromper_pacote(pacote)
+    def tratar_pacote(self, pacote):
+        print(self.menu)
+        decisao = int(input("O que fazer?:"))
+
+        if decisao == 0:
+            print("Pacote enviado com sucesso. 'ACK' pro cliente de origem")
+            self.enviar_pacote(pacote)
+            pacote = self.criar_ack(pacote)
+            self.enviar_pacote(pacote)
+    
+        if decisao == 1:
+            print("Pacote corrompido. 'NACK' enviado")
+            pacote = self.corromper_pacote(pacote)
+            # print("g1")
+            pacote = self.criar_nack(pacote)
+            self.enviar_pacote(pacote)
+            # print("g2")
+
+        else:
+            pass
 
 
-                self.enviar_pacote(pacote)
+    def criar_nack(self, pacote):
+        pacote = pickle.loads(pacote)
+        ip_de_origem = self.ip
+        ip_de_destino = pacote.retornar_ip_de_origem()
+
+        segmento = pacote.retornar_segmento()
+        porta_de_origem, porta_de_destino = segmento.retornar_porta_de_destino(), segmento.retornar_porta_de_origem()   
+        num_de_sequencia = segmento.retornar_num_de_sequencia()
+        ack = 0 if num_de_sequencia == 1 else 1
+        segmento = Segmento(porta_de_origem, porta_de_destino, "", num_de_sequencia, ack)
+        pacote = Pacote(ip_de_origem, ip_de_destino, segmento, 0)
+        pacote = pickle.dumps(pacote)
+        return pacote
+
+    def criar_ack(self, pacote):
+        pacote = pickle.loads(pacote)
+        ip_de_origem = self.ip
+        ip_de_destino = pacote.retornar_ip_de_origem()
+
+        segmento = pacote.retornar_segmento()
+        porta_de_origem, porta_de_destino = segmento.retornar_porta_de_destino(), segmento.retornar_porta_de_origem()   
+        num_de_sequencia = segmento.retornar_num_de_sequencia()
+        ack = num_de_sequencia
+        segmento = Segmento(porta_de_origem, porta_de_destino, "", num_de_sequencia, ack)
+        pacote = Pacote(ip_de_origem, ip_de_destino, segmento, 0)
+        pacote = pickle.dumps(pacote)
+        return pacote
 
     def corromper_pacote(self, pacote):
+        pacote = pickle.loads(pacote)
         segmento = pacote.retornar_segmento()
         segmento.trocar_bit_na_mensagem()
+        return pickle.dumps(pacote)
+
+
 
     def receber_pacote(self, cliente):
         while True:
             try:
                 pacote = cliente.recv(10000)
-                self.fila_de_pacotes.put(pacote)
+                # self.fila_de_pacotes.put(pacote)
+                self.tratar_pacote(pacote)
                 # print(f"mensagem {msg} colocada na fila")
 
                 # self.enviar_para_todos(msg, cliente)
@@ -69,7 +118,7 @@ class Servidor:
     def enviar_pacote(self, pacote_serializado):
         pacote = pickle.loads(pacote_serializado)
         ip_de_destino = pacote.retornar_ip_de_destino()
-
+        # print(self.clientes)
         cliente = self.clientes[ip_de_destino]
 
         cliente.send(pacote_serializado)

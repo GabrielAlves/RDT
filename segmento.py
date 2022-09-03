@@ -6,7 +6,7 @@ class Segmento:
         self.__comprimento = 8 + self.contar_bytes_da_mensagem(_mensagem)
         self.__checksum = self.calcular_checksum(_mensagem)
         self.__ack = _ack
-        self.num_de_sequencia = _num_de_sequencia
+        self.__num_de_sequencia = _num_de_sequencia
 
     def trocar_bit_na_mensagem(self):
         bit_trocado = "0" if self.__mensagem[-1] == "1" else "1"
@@ -32,6 +32,9 @@ class Segmento:
 
     def retornar_ack(self):
         return self.__ack
+
+    def retornar_num_de_sequencia(self):
+        return self.__num_de_sequencia
 
     def formatar_em_n_bits(self, binario, n):
         comprimento = len(binario)
