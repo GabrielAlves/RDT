@@ -96,9 +96,16 @@ class Servidor:
     def listar_conectados(self):
         print('Conectados:')
         if self.clientes != []:
+<<<<<<< HEAD
             for endereco in self.clientes:
                 print(self.clientes[endereco].getpeername())
         else: print('Ninguém')
+=======
+            for i in range(0, len(self.clientes)):
+                print(self.clientes[i].getpeername())
+        else:
+            print('Ninguém')
+>>>>>>> 1da5ad3e6be912799e1f33b28252fd88d0d7a0e6
 
 
 if __name__ == "__main__":

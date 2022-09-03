@@ -1,6 +1,7 @@
 import threading
 import socket
 import pickle
+import time
 
 from pacote import Pacote
 from segmento import Segmento
@@ -15,7 +16,7 @@ class Cliente:
         self.porta_de_origem = -1
         self.comprimento_do_buffer = 10000
         self.num_sequencia = 1
-
+        self.mensagem = ""
         self.cliente = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
         try:
@@ -43,7 +44,7 @@ class Cliente:
 
     # def split_mensagem(mensagem):
     #    mensagem[i:i + 4] for i in range(0, len(mensagem), 4)
-    
+
     def definir_num_seq(self):
         if self.num_sequencia == 1:
             self.num_sequencia = 0
@@ -67,21 +68,24 @@ class Cliente:
                 # for i in range(0, len(mensagem), 4)]
                 msg_binario_split = [msg_binario[i:i + tamanho_da_mensagem]
                                      for i in range(0, len(msg_binario), tamanho_da_mensagem)]
-
-                # print(mensagem_split, msg_binario_split)
+                # print(mensagem_split)
+                # print(msg_binario_split)
 
                 for i in range(0, len(msg_binario_split)):
                     segmentos.append(
-                        Segmento(self.porta_de_origem, self.porta_de_destino, msg_binario_split[i], self.definir_num_seq()))
+                        Segmento(self.porta_de_origem, self.porta_de_destino, msg_binario_split[i], self.definir_num_seq(), self.definir_num_seq()))
                     pacotes.append(
                         Pacote(self.ip_de_origem, self.ip_de_destino, segmentos[i]))
                     pacotes_serializados.append(pickle.dumps(pacotes[i]))
-
-                for pacote in pacotes_serializados:
-                    self.cliente.send(pacote)
+                
+                for i in range(0, len(pacotes_serializados)):
+                    # while ack == self.num_sequencia():
+                        self.cliente.send(pacotes_serializados[i])
+                      #  time.sleep(1)
+                      #   ack = self.receber_mensagens()
 
                 # for i in range(0, len(segmentos)):
-                #     print(segmentos[i].__dict__)
+                        # print("segmento: ", segmentos[i].__dict__)
                 # segmento = Segmento("", self.porta_de_destino, mensagem)
                 # pacote = Pacote(self.ip_de_origem, self.ip_de_destino, segmento)
                 # pacote_serializado = pickle.dumps(pacote)
@@ -94,24 +98,31 @@ class Cliente:
     def receber_mensagens(self):
         while True:
             try:
-                pacote_serializado = self.cliente.recv(
-                    self.comprimento_do_buffer)
+                pacote_serializado = self.cliente.recv(self.comprimento_do_buffer)
                 pacote = pickle.loads(pacote_serializado)
                 segmento = pacote.retornar_segmento()
-                mensagem = segmento.retornar_mensagem()
-                print(
-                    f"mensagem enviada por {pacote.retornar_ip_de_origem()}: {mensagem}\n")
+                checksum = segmento.calcular_checksum(segmento.retornar_mensagem())
 
+                if checksum == segmento.retornar_checksum():
+                    self.mensagem = self.mensagem + segmento.retornar_mensagem()
+
+                print("Mensagem recebida de", self.ip_de_origem, ":", self.mensagem, "/")
+                # return segmento.retornar_ack()
+                
             except:
                 print('\nNão foi possível permanecer conectado no servidor!\n')
                 print('Pressione <Enter> Para continuar...')
                 self.cliente.close()
                 break
+        
+        
+        self.mensagem = ""
 
     def receber_porta_de_origem_do_servidor(self):
         while True:
             try:
-                self.porta_de_origem = int(self.cliente.recv(self.comprimento_do_buffer).decode())
+                self.porta_de_origem = int(self.cliente.recv(
+                    self.comprimento_do_buffer).decode())
                 print(type(self.porta_de_origem))
                 print(self.porta_de_origem)
                 break
@@ -121,8 +132,6 @@ class Cliente:
                 print('Pressione <Enter> Para continuar...')
                 self.cliente.close()
                 break
-
-            
 
 
 if __name__ == "__main__":

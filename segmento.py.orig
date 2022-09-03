@@ -14,17 +14,19 @@ class Segmento:
     def retornar_mensagem(self):
         return self.__mensagem
 
+<<<<<<< HEAD
     def retornar_porta_de_destino(self):
         return self.__porta_de_destino
 
     def retornar_porta_de_origem(self):
         return self.__porta_de_origem
-
+=======
     def retornar_checksum(self):
         return self.__checksum
 
     def retornar_ack(self):
         return self.__ack
+>>>>>>> 1da5ad3e6be912799e1f33b28252fd88d0d7a0e6
 
     def formatar_em_n_bits(self, binario, n):
         comprimento = len(binario)
