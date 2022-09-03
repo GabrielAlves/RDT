@@ -79,13 +79,13 @@ class Cliente:
                     pacotes_serializados.append(pickle.dumps(pacotes[i]))
                 
                 for i in range(0, len(pacotes_serializados)):
-                    while ack == self.num_sequencia():
+                    # while ack == self.num_sequencia():
                         self.cliente.send(pacotes_serializados[i])
-                        time.sleep(1)
-                        ack = self.receber_mensagens()
+                      #  time.sleep(1)
+                      #   ack = self.receber_mensagens()
 
                 # for i in range(0, len(segmentos)):
-                #     print(segmentos[i].__dict__)
+                        # print("segmento: ", segmentos[i].__dict__)
                 # segmento = Segmento("", self.porta_de_destino, mensagem)
                 # pacote = Pacote(self.ip_de_origem, self.ip_de_destino, segmento)
                 # pacote_serializado = pickle.dumps(pacote)
@@ -98,8 +98,7 @@ class Cliente:
     def receber_mensagens(self):
         while True:
             try:
-                pacote_serializado = self.cliente.recv(
-                    self.comprimento_do_buffer)
+                pacote_serializado = self.cliente.recv(self.comprimento_do_buffer)
                 pacote = pickle.loads(pacote_serializado)
                 segmento = pacote.retornar_segmento()
                 checksum = segmento.calcular_checksum(segmento.retornar_mensagem())
@@ -107,14 +106,16 @@ class Cliente:
                 if checksum == segmento.retornar_checksum():
                     self.mensagem = self.mensagem + segmento.retornar_mensagem()
 
-                return segmento.retornar_ack()    
+                print("Mensagem recebida de", self.ip_de_origem, ":", self.mensagem, "/")
+                # return segmento.retornar_ack()
                 
             except:
                 print('\nNão foi possível permanecer conectado no servidor!\n')
                 print('Pressione <Enter> Para continuar...')
                 self.cliente.close()
                 break
-
+        
+        
         self.mensagem = ""
 
     def receber_porta_de_origem_do_servidor(self):
