@@ -15,7 +15,6 @@ class Cliente:
         self.porta_de_destino = 65432
         self.porta_de_origem = -1
         self.comprimento_do_buffer = 10000
-        self.ack = 0
         self.num_sequencia = 0
         self.mensagem = ""
         self.cliente = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -70,23 +69,21 @@ class Cliente:
                 # print(mensagem_split)
                 # print(msg_binario_split)
 
+                ultimo = 0
                 for i in range(0, len(msg_binario_split)):
+                    if i == len(msg_binario_split) - 1: ultimo = 1
                     segmento = Segmento(self.porta_de_origem, self.porta_de_destino, msg_binario_split[i], i % 2, "")
-                    pacote = Pacote(self.ip_de_origem, self.ip_de_destino, segmento)
+                    pacote = Pacote(self.ip_de_origem, self.ip_de_destino, segmento, ultimo)
                     pacote_serializado = pickle.dumps(pacote)
                     pacotes_serializados.append(pacote_serializado)
     
                 
                 for i in range(0, len(pacotes_serializados)):
-                    # while ack == self.num_sequencia():
-                    self.cliente.send(pacotes_serializados[i])
-
-                    while True:
-                        pass
-                      #  time.sleep(1)
-                      #   ack = self.receber_mensagens()
-
-    
+                    ack = self.num_sequencia
+                    while ack == self.num_sequencia: # envia enquanto o ack recebido != num seq enviado
+                        self.cliente.send(pacotes_serializados[i])
+                        time.sleep(1)
+                        ack = self.receber_mensagens()
 
             except Exception as e:
                 print(e)
@@ -98,18 +95,25 @@ class Cliente:
                 pacote_serializado = self.cliente.recv(self.comprimento_do_buffer)
                 pacote = pickle.loads(pacote_serializado)
 
-                print("Mensagem recebida de", self.ip_de_origem, ":", self.mensagem, "/")
-                # return segmento.retornar_ack()
+                segmento = pacote.retornar_segmento()
+                mensagem_recebida = segmento.retornar_mensagem()
                 
+                self.mensagem = self.mensagem + mensagem_recebida
+
+                if pacote.is_ultimo():
+                    self.mensagem = ""
+
+
+
+                print(self.mensagem)
+                return segmento.retornar_ack()
+
             except:
                 print('\nNão foi possível permanecer conectado no servidor!\n')
                 print('Pressione <Enter> Para continuar...')
                 self.cliente.close()
                 break
         
-        
-        self.mensagem = ""
-
     def receber_porta_de_origem_do_servidor(self):
         while True:
             try:

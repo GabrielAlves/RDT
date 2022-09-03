@@ -43,7 +43,7 @@ class Servidor:
                 pacote = self.fila_de_pacotes.get()
                 print(f"O que fazer com a mensagem ")
                 decisao = int(input(f"Corromper pacote?(1/0)"))
-
+            
                 if decisao == 1:
                     self.corromper_pacote(pacote)
 
