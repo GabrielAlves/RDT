@@ -15,7 +15,8 @@ class Cliente:
         self.porta_de_destino = 65432
         self.porta_de_origem = -1
         self.comprimento_do_buffer = 10000
-        self.num_sequencia = 1
+        self.ack = 0
+        self.num_sequencia = 0
         self.mensagem = ""
         self.cliente = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -57,8 +58,6 @@ class Cliente:
         while True:
             try:
                 mensagem = input('\n')
-                segmentos = []
-                pacotes = []
                 pacotes_serializados = []
                 msg_binario = "".join([self.formatar_em_n_bits(
                     bin(ord(caractere))[2:], 8) for caractere in mensagem])
@@ -72,24 +71,22 @@ class Cliente:
                 # print(msg_binario_split)
 
                 for i in range(0, len(msg_binario_split)):
-                    segmentos.append(
-                        Segmento(self.porta_de_origem, self.porta_de_destino, msg_binario_split[i], self.definir_num_seq(), self.definir_num_seq()))
-                    pacotes.append(
-                        Pacote(self.ip_de_origem, self.ip_de_destino, segmentos[i]))
-                    pacotes_serializados.append(pickle.dumps(pacotes[i]))
+                    segmento = Segmento(self.porta_de_origem, self.porta_de_destino, msg_binario_split[i], i % 2, "")
+                    pacote = Pacote(self.ip_de_origem, self.ip_de_destino, segmento)
+                    pacote_serializado = pickle.dumps(pacote)
+                    pacotes_serializados.append(pacote_serializado)
+    
                 
                 for i in range(0, len(pacotes_serializados)):
                     # while ack == self.num_sequencia():
-                        self.cliente.send(pacotes_serializados[i])
+                    self.cliente.send(pacotes_serializados[i])
+
+                    while True:
+                        pass
                       #  time.sleep(1)
                       #   ack = self.receber_mensagens()
 
-                # for i in range(0, len(segmentos)):
-                        # print("segmento: ", segmentos[i].__dict__)
-                # segmento = Segmento("", self.porta_de_destino, mensagem)
-                # pacote = Pacote(self.ip_de_origem, self.ip_de_destino, segmento)
-                # pacote_serializado = pickle.dumps(pacote)
-                # self.cliente.send(pacote_serializado)
+    
 
             except Exception as e:
                 print(e)
@@ -100,11 +97,6 @@ class Cliente:
             try:
                 pacote_serializado = self.cliente.recv(self.comprimento_do_buffer)
                 pacote = pickle.loads(pacote_serializado)
-                segmento = pacote.retornar_segmento()
-                checksum = segmento.calcular_checksum(segmento.retornar_mensagem())
-
-                if checksum == segmento.retornar_checksum():
-                    self.mensagem = self.mensagem + segmento.retornar_mensagem()
 
                 print("Mensagem recebida de", self.ip_de_origem, ":", self.mensagem, "/")
                 # return segmento.retornar_ack()

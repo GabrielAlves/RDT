@@ -8,8 +8,15 @@ class Segmento:
         self.__ack = _ack
         self.num_de_sequencia = _num_de_sequencia
 
+    def trocar_bit_na_mensagem(self):
+        bit_trocado = "0" if self.__mensagem[-1] == "1" else "1"
+        self.__mensagem = self.__mensagem[:-1] + bit_trocado
+
     def contar_bytes_da_mensagem(self, mensagem):
         return len(mensagem.encode("utf-8"))
+
+    def retornar_comprimento(self):
+        return self.__comprimento
 
     def retornar_mensagem(self):
         return self.__mensagem

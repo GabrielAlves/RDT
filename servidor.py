@@ -45,10 +45,14 @@ class Servidor:
                 decisao = int(input(f"Corromper pacote?(1/0)"))
 
                 if decisao == 1:
-                    pass
+                    self.corromper_pacote(pacote)
 
-                else:
-                    self.enviar_pacote(pacote)
+
+                self.enviar_pacote(pacote)
+
+    def corromper_pacote(self, pacote):
+        segmento = pacote.retornar_segmento()
+        segmento.trocar_bit_na_mensagem()
 
     def receber_pacote(self, cliente):
         while True:
