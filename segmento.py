@@ -14,6 +14,12 @@ class Segmento:
     def retornar_mensagem(self):
         return self.__mensagem
 
+    def retornar_porta_de_destino(self):
+        return self.__porta_de_destino
+
+    def retornar_porta_de_origem(self):
+        return self.__porta_de_origem
+
     def formatar_em_n_bits(self, binario, n):
         comprimento = len(binario)
 

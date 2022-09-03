@@ -1,6 +1,8 @@
+from operator import index
 import threading
 import socket
 from queue import Queue
+import pickle
 
 
 class Servidor:
@@ -14,14 +16,14 @@ class Servidor:
         except:
             return print('\nNão foi possível iniciar o servidor!\n')
 
-        self.clientes = []
+        self.clientes = {}
         self.fila_de_pacotes = Queue()
         thread = threading.Thread(target = self.tratar_pacotes_na_fila)
         thread.start()
 
         while True:
             cliente, endereco = servidor.accept()
-            self.clientes.append(cliente)
+            self.clientes[endereco[0]] = cliente
 
             self.enviar_porta_de_origem_para_cliente(cliente)
 
@@ -46,7 +48,7 @@ class Servidor:
                     pass
 
                 else:
-                    self.enviar_para_todos(pacote)
+                    self.enviar_pacote(pacote)
 
     def receber_pacote(self, cliente):
         while True:
@@ -60,25 +62,42 @@ class Servidor:
                 self.remover_cliente(cliente)
                 break
 
-    def enviar_para_todos(self, msg):
-        for cliente in self.clientes:
-            # if cliente != cliente_emissor:
-            try:
-                cliente.send(msg)
-            except:
-                self.remover_cliente(cliente)
-                print('Removido:', cliente.getpeername())
+    def enviar_pacote(self, pacote_serializado):
+        pacote = pickle.loads(pacote_serializado)
+        ip_de_destino = pacote.retornar_ip_de_destino()
+
+        cliente = self.clientes[ip_de_destino]
+
+        cliente.send(pacote_serializado)
+
+    # def selecionar_cliente(self, ip_de_destino, porta_de_de)
+
+
+    # def enviar_para_todos(self, msg):
+    #     for cliente in self.clientes:
+    #         # if cliente != cliente_emissor:
+    #         try:
+    #             cliente.send(msg)
+    #         except:
+    #             self.remover_cliente(cliente)
+    #             print('Removido:', cliente.getpeername())
 
     def remover_cliente(self, cliente):
-        self.clientes.remove(cliente)
-        print('Removido:', cliente.getpeername())
-        self.listar_conectados()
+        for endereco in self.clientes:
+            if self.clientes[endereco] == cliente:
+                chave = endereco
+                break
+
+        if chave != None:
+            del self.clientes[endereco]
+            print('Removido:', cliente.getpeername())
+            self.listar_conectados()
 
     def listar_conectados(self):
         print('Conectados:')
         if self.clientes != []:
-            for i in range(0, len(self.clientes)):
-                print(self.clientes[i].getpeername())
+            for endereco in self.clientes:
+                print(self.clientes[endereco].getpeername())
         else: print('Ninguém')
 
 

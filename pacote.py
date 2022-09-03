@@ -9,3 +9,6 @@ class Pacote:
 
     def retornar_ip_de_origem(self):
         return self.__ip_de_origem
+
+    def retornar_ip_de_destino(self):
+        return self.__ip_de_destino
