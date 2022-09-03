@@ -16,7 +16,7 @@ class Servidor:
 
         self.clientes = []
         self.fila_de_pacotes = Queue()
-        thread = threading.Thread(target = self.tratar_pacotes_na_fila)
+        thread = threading.Thread(target=self.tratar_pacotes_na_fila)
         thread.start()
 
         while True:
@@ -25,7 +25,8 @@ class Servidor:
 
             self.enviar_porta_de_origem_para_cliente(cliente)
 
-            thread2 = threading.Thread(target=self.receber_pacote, args=[cliente])
+            thread2 = threading.Thread(
+                target=self.receber_pacote, args=[cliente])
             thread2.start()
 
             self.listar_conectados()
@@ -33,7 +34,6 @@ class Servidor:
     def enviar_porta_de_origem_para_cliente(self, cliente):
         porta = str(cliente.getpeername()[1])
         cliente.send(porta.encode())
-
 
     def tratar_pacotes_na_fila(self):
         while True:
@@ -79,7 +79,8 @@ class Servidor:
         if self.clientes != []:
             for i in range(0, len(self.clientes)):
                 print(self.clientes[i].getpeername())
-        else: print('Ninguém')
+        else:
+            print('Ninguém')
 
 
 if __name__ == "__main__":
