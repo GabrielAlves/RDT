@@ -6,23 +6,29 @@ import time
 from pacote import Pacote
 from segmento import Segmento
 
-
 class Cliente:
     def __init__(self):
-        self.nome_do_computador = socket.gethostname()
-        self.ip_de_origem = socket.gethostbyname(self.nome_do_computador)
-        self.ip_de_destino = self.ip_de_origem  # Trocar pelo ip do computador C
+        self.ip_de_origem = socket.gethostbyname(socket.gethostname())
+        self.ip_de_destino = "26.209.24.137" 
+        # self.ip_de_destino = "26.138.96.133"  # Trocar pelo IP do outro cliente
+        self.porta_de_origem = -1 # O servidor envia essa informação durante a conexão
         self.porta_de_destino = 65432
-        self.porta_de_origem = -1
+        
+
         self.comprimento_do_buffer = 10000
-        self.num_sequencia = 0
-        self.mensagem = ""
+        self.num_de_sequencia_atual = 0
         self.reenvio = False
+        self.tempo_de_reenvio = 3 # tempo em segundos
+
+        self.mensagem = ""
+
         self.cliente = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.tempo_de_reenvio = 3
+
+        ip_do_servidor = "26.209.24.137"
+        porta_do_servidor = 65432
 
         try:
-            self.cliente.connect((self.ip_de_origem, self.porta_de_destino))
+            self.cliente.connect((ip_do_servidor, porta_do_servidor))
 
         except:
             return print('\nNão foi possívvel se conectar ao servidor!\n')
@@ -44,57 +50,33 @@ class Cliente:
             return "0" * (n - comprimento) + binario
         return binario
 
-    # def split_mensagem(mensagem):
-    #    mensagem[i:i + 4] for i in range(0, len(mensagem), 4)
-
-    def definir_num_seq(self):
-        if self.num_sequencia == 1:
-            self.num_sequencia = 0
-            return 0
-        else:
-            self.num_sequencia = 1
-            return 1
+    def atualizar_num_de_sequencia(self):
+        self.num_de_sequencia_atual = 0 if self.num_de_sequencia_atual == 1 else 1
 
     def enviar_mensagens(self):
         while True:
             try:
                 mensagem = input('\n')
-                pacotes_serializados = []
-                msg_binario = "".join([self.formatar_em_n_bits(
-                    bin(ord(caractere))[2:], 8) for caractere in mensagem])
+                mensagem_em_binario = "".join([self.formatar_em_n_bits(bin(ord(caractere))[2:], 8) for caractere in mensagem])
+                segmento = Segmento(self.porta_de_origem, self.porta_de_destino, mensagem_em_binario, self.num_de_sequencia_atual, "")
+                pacote = Pacote(self.ip_de_origem, self.ip_de_destino, segmento)                
+                pacote_serializado = pickle.dumps(pacote)
 
-                tamanho_da_mensagem = 32
-                # mensagem_split = [mensagem[i:i + 4]
-                # for i in range(0, len(mensagem), 4)]
-                msg_binario_split = [msg_binario[i:i + tamanho_da_mensagem]
-                                     for i in range(0, len(msg_binario), tamanho_da_mensagem)]
-                # print(mensagem_split)
-                # print(msg_binario_split)
+                self.cliente.send(pacote_serializado)
+                num_de_sequencia = self.num_de_sequencia_atual
+                tempo_inicial = time.time()
 
-                ultimo = 0
-                for i in range(0, len(msg_binario_split)):
-                    if i == len(msg_binario_split) - 1: ultimo = 1
-                    segmento = Segmento(self.porta_de_origem, self.porta_de_destino, msg_binario_split[i], i % 2, "")
-                    pacote = Pacote(self.ip_de_origem, self.ip_de_destino, segmento, ultimo)
-                    pacote_serializado = pickle.dumps(pacote)
-                    pacotes_serializados.append(pacote_serializado)
-    
-                
-                for i in range(0, len(pacotes_serializados)):
-                    self.cliente.send(pacotes_serializados[i])
-                    ack_anterior = self.num_sequencia
+                # Enquanto o número de sequência atual não mudar, ainda não recebeu ACK. Continuar reenviando o pacote.
+                while num_de_sequencia == self.num_de_sequencia_atual:
                     
-                    tempo_inicial = time.time()
-                    while ack_anterior == self.num_sequencia: # envia enquanto o ack recebido != num seq enviado
-                        if time.time() - tempo_inicial >= self.tempo_de_reenvio:
-                            self.reenvio = True
-                            tempo_inicial = time.time()
+                    # Temporizador
+                    if time.time() - tempo_inicial >= self.tempo_de_reenvio:
+                        self.reenvio = True
+                        tempo_inicial = time.time() # Reinicia temporizador
 
-                        if self.reenvio:
-                            self.cliente.send(pacotes_serializados[i])
-                            self.reenvio = False
-
-                        # time.sleep(1)
+                    if self.reenvio:
+                        self.cliente.send(pacote_serializado)
+                        self.reenvio = False
 
             except Exception as e:
                 print(e)
@@ -105,33 +87,31 @@ class Cliente:
             try:
                 pacote_serializado = self.cliente.recv(self.comprimento_do_buffer)
                 pacote = pickle.loads(pacote_serializado)
-                
-
+            
                 segmento = pacote.retornar_segmento()
                 mensagem_recebida = segmento.retornar_mensagem()
 
-                # print(f"mensagem recebida: {mensagem_recebida}")
-
                 if mensagem_recebida:
-                    self.mensagem = self.mensagem + mensagem_recebida
+                    self.mensagem = mensagem_recebida
 
+                # Se a mensagem não tiver conteúdo, é um ACK/NACK.
                 else:
                     ack = segmento.retornar_ack()
                     num_de_sequencia = segmento.retornar_num_de_sequencia()
                     
+                    # Chegou um ACK. Pacote recebido com sucesso. Atualizar o número de sequência.
                     if ack == num_de_sequencia:
+                        
+                        # Se já tiver alguma mensagem no "buffer" de mensagem
+                        if self.mensagem != "":
+                            print(self.mensagem)
+                            self.mensagem = ""
 
-                        # self.reenvio = False
-                        self.definir_num_seq()
+                        self.atualizar_num_de_sequencia()
 
+                    # Chegou um "NACK". Houve algum problema com o pacote. O pacote deve ser reenviado.
                     else:
-
                         self.reenvio = True
-
-                if pacote.is_ultimo():
-                    print(self.mensagem)
-                    self.mensagem = ""
-                
 
             except:
                 print('\nNão foi possível permanecer conectado no servidor!\n')
@@ -142,8 +122,7 @@ class Cliente:
     def receber_porta_de_origem_do_servidor(self):
         while True:
             try:
-                self.porta_de_origem = int(self.cliente.recv(
-                    self.comprimento_do_buffer).decode())
+                self.porta_de_origem = int(self.cliente.recv(self.comprimento_do_buffer).decode())
                 print(type(self.porta_de_origem))
                 print(self.porta_de_origem)
                 break
