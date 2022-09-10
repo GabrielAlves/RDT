@@ -32,7 +32,8 @@ class ClienteGUI:
         self.num_de_sequencia_atual = 0
         self.reenvio = False
         self.tempo_de_reenvio = 3
-        self.mensagem = ""
+        self.mensagem_local = ""
+        self.mensagem_remota = ""
         self.mensagem_gui = Mensagem(self.janela, self.canvas)
 
     def estabelecer_conexao_com_servidor(self):
@@ -138,32 +139,32 @@ class ClienteGUI:
 
     def enviar_mensagem(self):
         try:
-            # self.limpar_caixa_de_texto()
-            # self.caixa_de_texto.config(state = "disabled")
-            mensagem = self.pegar_mensagem_da_caixa_de_texto()
-            segmento = Segmento(self.porta_de_origem, self.porta_de_destino, mensagem, self.num_de_sequencia_atual, 0)
+            self.limpar_caixa_de_texto()
+            self.caixa_de_texto.config(state = "disabled")
+            self.mensagem_local = self.pegar_mensagem_da_caixa_de_texto()
+
+            segmento = Segmento(self.porta_de_origem, self.porta_de_destino, self.mensagem_local, self.num_de_sequencia_atual, 0)
             pacote = Pacote(self.ip_de_origem, self.ip_de_destino, segmento)                
             pacote_serializado = pickle.dumps(pacote)
 
-            self.mensagem_gui.criar_balao_de_mensagem(mensagem, True)
+            self.cliente.send(pacote_serializado)
+            num_de_sequencia = self.num_de_sequencia_atual
+            tempo_inicial = time.time()
 
-            # self.cliente.send(pacote_serializado)
-            # num_de_sequencia = self.num_de_sequencia_atual
-            # tempo_inicial = time.time()
-
-            # # Enquanto o número de sequência atual não mudar, ainda não recebeu ACK. Continuar reenviando o pacote.
-            # while num_de_sequencia == self.num_de_sequencia_atual:
+            # Enquanto o número de sequência atual não mudar, ainda não recebeu ACK. Continuar reenviando o pacote.
+            while num_de_sequencia == self.num_de_sequencia_atual:
                 
-            #     # Temporizador
-            #     if time.time() - tempo_inicial >= self.tempo_de_reenvio:
-            #         self.reenvio = True
-            #         tempo_inicial = time.time() # Reinicia temporizador
+                # Temporizador
+                if time.time() - tempo_inicial >= self.tempo_de_reenvio:
+                    self.reenvio = True
+                    tempo_inicial = time.time() # Reinicia temporizador
 
-            #     if self.reenvio:
-            #         self.cliente.send(pacote_serializado)
-            #         self.reenvio = False
+                if self.reenvio:
+                    self.cliente.send(pacote_serializado)
+                    self.reenvio = False
 
             self.caixa_de_texto.config(state = "normal")
+            self.caixa_de_texto.focus()
 
         except Exception as e:
             print(e)
@@ -179,21 +180,25 @@ class ClienteGUI:
                 mensagem_recebida = segmento.retornar_mensagem()
 
                 if mensagem_recebida:
-                    self.mensagem = mensagem_recebida
+                    self.mensagem_remota = mensagem_recebida
 
                 # Se a mensagem não tiver conteúdo, é um ACK/NACK.
-                else:
+                elif mensagem_recebida == "" and segmento.retornar_ack() == 1:
                     # ack = segmento.retornar_ack()
                     num_de_sequencia = segmento.retornar_num_de_sequencia()
                     
-                    # Chegou um ACK. Pacote recebido com sucesso. Atualizar o número de sequência.
+                    # Chegou um ACK. Pacote recebido com sucesso. Mostrar mensagens do buffer e atualizar o número de sequência.
                     if self.num_de_sequencia_atual == num_de_sequencia:
                         
                         # Se já tiver alguma mensagem no "buffer" de mensagem
-                        if self.mensagem != "":
-                            print(self.mensagem)
-                            self.mensagem = ""
+                        if self.mensagem_local != "":
+                            self.mensagem_gui.criar_balao_de_mensagem(self.mensagem_local, True)
+                            self.mensagem_local = ""
 
+                        if self.mensagem_remota != "":
+                            self.mensagem_gui.criar_balao_de_mensagem(self.mensagem_remota, False)
+                            self.mensagem_remota = ""
+                        
                         self.atualizar_num_de_sequencia()
 
                     # Chegou um "NACK". Houve algum problema com o pacote. O pacote deve ser reenviado.
