@@ -49,7 +49,7 @@ class Servidor:
     def tratar_pacote(self, pacote):
         if not self.eh_pacote_repetido(pacote):
             decisao1 = int(input("Corromper pacote?(0 -> Não corromper; 1 -> Corromper):"))
-            decisao2 = int(input("Enviar ACK/NACK de volta?(0 -> Não enviar; 1 -> Enviar)"))
+            decisao2 = int(input("Perder ACK/NACK?(0 -> Não perder; 1 -> Perder)"))
 
             if decisao1 == 0:
                 print("Pacote não foi corrompido.")
@@ -71,13 +71,13 @@ class Servidor:
                 print("'NACK' criado.")
 
             if decisao2 == 0:
-                print("Reconhecimento não foi enviado.")
-
-            elif decisao2 == 1:
                 self.enviar_pacote(reconhecimento)
                 print("Reconhecimento enviado.")
+
+            elif decisao2 == 1:
+                print("Reconhecimento não foi enviado.")
             
-            if decisao1 == 0 and decisao2 == 1:
+            if decisao1 == 0 and decisao2 == 0:
                 self.salvar_ultimo_enviado(pacote)
 
     def enviar_pacote(self, pacote):
@@ -120,13 +120,11 @@ class Servidor:
         num_de_sequencia = segmento.retornar_num_de_sequencia()
         mensagem = ""
         
-        if eh_ack:
-            ack = num_de_sequencia
+        # se nack
+        if not eh_ack:
+            num_de_sequencia = 0 if num_de_sequencia == 1 else 1
 
-        else:
-            ack = 0 if num_de_sequencia == 1 else 1
-
-        segmento = Segmento(porta_de_origem, porta_de_destino, mensagem, num_de_sequencia, ack)
+        segmento = Segmento(porta_de_origem, porta_de_destino, mensagem, num_de_sequencia, 1)
         pacote = Pacote(self.ip_do_servidor, ip_de_destino, segmento)
         return pacote
 

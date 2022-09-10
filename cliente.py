@@ -43,13 +43,6 @@ class Cliente:
         thread1.start()
         thread2.start()
 
-    def formatar_em_n_bits(self, binario, n):
-        comprimento = len(binario)
-
-        if n > comprimento:
-            return "0" * (n - comprimento) + binario
-        return binario
-
     def atualizar_num_de_sequencia(self):
         self.num_de_sequencia_atual = 0 if self.num_de_sequencia_atual == 1 else 1
 
@@ -57,8 +50,8 @@ class Cliente:
         while True:
             try:
                 mensagem = input('\n')
-                mensagem_em_binario = "".join([self.formatar_em_n_bits(bin(ord(caractere))[2:], 8) for caractere in mensagem])
-                segmento = Segmento(self.porta_de_origem, self.porta_de_destino, mensagem_em_binario, self.num_de_sequencia_atual, "")
+                # mensagem_em_binario = "".join([self.formatar_em_n_bits(bin(ord(caractere))[2:], 8) for caractere in mensagem])
+                segmento = Segmento(self.porta_de_origem, self.porta_de_destino, mensagem, self.num_de_sequencia_atual, 0)
                 pacote = Pacote(self.ip_de_origem, self.ip_de_destino, segmento)                
                 pacote_serializado = pickle.dumps(pacote)
 
@@ -96,11 +89,11 @@ class Cliente:
 
                 # Se a mensagem não tiver conteúdo, é um ACK/NACK.
                 else:
-                    ack = segmento.retornar_ack()
+                    # ack = segmento.retornar_ack()
                     num_de_sequencia = segmento.retornar_num_de_sequencia()
                     
                     # Chegou um ACK. Pacote recebido com sucesso. Atualizar o número de sequência.
-                    if ack == num_de_sequencia:
+                    if self.num_de_sequencia_atual == num_de_sequencia:
                         
                         # Se já tiver alguma mensagem no "buffer" de mensagem
                         if self.mensagem != "":
