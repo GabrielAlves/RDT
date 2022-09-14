@@ -130,6 +130,7 @@ class ClienteGUI:
     def criar_botao_de_anexar_imagem(self):
         self.botao_de_anexar_imagem = ttk.Button(self.frame3, text = "Anexar")
         self.botao_de_anexar_imagem.grid(row = 0)
+        self.botao_de_anexar_imagem.config(state = "disabled")
 
     def criar_botao_de_enviar(self):
         self.botao_de_enviar = ttk.Button(self.frame3, text = "Enviar", command = self.enviar_mensagem)
