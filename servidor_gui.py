@@ -159,12 +159,17 @@ class ServidorGUI:
         if self.decisao_da_perda_de_ack.get() == 0:
             self.enviar_pacote(reconhecimento)
             self.inserir_mensagem_de_log("Reconhecimento enviado.")
+            
+
+        if self.decisao_de_corrompimento.get() == 0 and self.decisao_da_perda_de_ack.get() == 0:
             self.enviar_pacote(pacote)
             self.inserir_mensagem_de_log("Pacote enviado pro outro cliente.")
             
 
         elif self.decisao_da_perda_de_ack.get() == 1:
             self.inserir_mensagem_de_log("Reconhecimento não foi enviado.")
+
+        
         
         if self.decisao_de_corrompimento.get() == 0 and self.decisao_da_perda_de_ack.get() == 0:
             self.salvar_ultimo_enviado(pacote)
