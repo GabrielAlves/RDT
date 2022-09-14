@@ -25,7 +25,7 @@ class ClienteGUI:
     def criar_atributos_de_cliente(self):
         self.cliente = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.ip_de_origem = socket.gethostbyname(socket.gethostname())
-        self.ip_de_destino = "26.209.24.137" # Trocar pelo IP do outro cliente
+        self.ip_de_destino = "26.121.180.116" # Trocar pelo IP do outro cliente
         self.porta_de_origem = -1 # O servidor envia essa informação durante a conexão
         self.porta_de_destino = 65432
         self.comprimento_do_buffer = 10000000
@@ -37,7 +37,7 @@ class ClienteGUI:
         self.mensagem_gui = Mensagem(self.janela, self.canvas)
 
     def estabelecer_conexao_com_servidor(self):
-        ip_do_servidor = "26.209.24.137"
+        ip_do_servidor = "26.97.65.151"
         porta_do_servidor = 65432
 
         try:
@@ -156,6 +156,8 @@ class ClienteGUI:
             self.cliente.send(pacote_serializado)
             num_de_sequencia = self.num_de_sequencia_atual
             tempo_inicial = time.time()
+            self.criar_thread_de_mensagem_local()
+            self.thread_de_mensagem_local.start()
 
             # Enquanto o número de sequência atual não mudar, ainda não recebeu ACK. Continuar reenviando o pacote.
             while num_de_sequencia == self.num_de_sequencia_atual:
@@ -169,8 +171,6 @@ class ClienteGUI:
                     self.cliente.send(pacote_serializado)
                     self.reenvio = False
             
-            self.criar_thread_de_mensagem_local()
-            self.thread_de_mensagem_local.start()
             self.botao_de_enviar.config(state = "normal")
 
         except Exception as e:
@@ -188,6 +188,8 @@ class ClienteGUI:
                 
                 if mensagem_recebida:
                     self.mensagem_remota = mensagem_recebida
+                    self.criar_thread_de_mensagem_remota()
+                    self.thread_de_mensagem_remota.start()
                 
                 # # Se a mensagem não tiver conteúdo, é um ACK/NACK.
                 elif mensagem_recebida == "" and segmento.retornar_ack() == 1:
@@ -196,11 +198,8 @@ class ClienteGUI:
                     
                     # Chegou um ACK. Pacote recebido com sucesso. Mostrar mensagens do buffer e atualizar o número de sequência.
                     if self.num_de_sequencia_atual == num_de_sequencia:
-                        if self.mensagem_remota != "":
-                            self.criar_thread_de_mensagem_remota()
-                            self.thread_de_mensagem_remota.start()
-                            # self.mensagem_gui.criar_balao_de_mensagem(self.mensagem_remota, False)
-                            self.mensagem_remota = ""
+                        # self.mensagem_gui.criar_balao_de_mensagem(self.mensagem_remota, False)
+                        self.mensagem_remota = ""
 
                         self.atualizar_num_de_sequencia()
 

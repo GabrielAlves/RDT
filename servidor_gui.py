@@ -151,8 +151,6 @@ class ServidorGUI:
         if checksum_iguais:
             reconhecimento = self.criar_pacote_de_reconhecimento(pacote, True)
             self.inserir_mensagem_de_log("'ACK' criado.")
-            self.enviar_pacote(pacote)
-            self.inserir_mensagem_de_log("Pacote enviado pro outro cliente.")
 
         else:
             reconhecimento = self.criar_pacote_de_reconhecimento(pacote, False)
@@ -160,6 +158,8 @@ class ServidorGUI:
 
         if self.decisao_da_perda_de_ack.get() == 0:
             self.enviar_pacote(reconhecimento)
+            self.enviar_pacote(pacote)
+            self.inserir_mensagem_de_log("Pacote enviado pro outro cliente.")
             self.inserir_mensagem_de_log("Reconhecimento enviado.")
 
         elif self.decisao_da_perda_de_ack.get() == 1:

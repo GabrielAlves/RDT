@@ -9,7 +9,7 @@ from segmento import Segmento
 class Cliente:
     def __init__(self):
         self.ip_de_origem = socket.gethostbyname(socket.gethostname())
-        self.ip_de_destino = "26.209.24.137" 
+        self.ip_de_destino = "26.121.180.116" 
         # self.ip_de_destino = "26.138.96.133"  # Trocar pelo IP do outro cliente
         self.porta_de_origem = -1 # O servidor envia essa informação durante a conexão
         self.porta_de_destino = 65432
@@ -24,7 +24,7 @@ class Cliente:
 
         self.cliente = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-        ip_do_servidor = "26.209.24.137"
+        ip_do_servidor = "26.97.65.151"
         porta_do_servidor = 65432
 
         try:
