@@ -20,7 +20,7 @@ class ClienteGUI:
         self.criar_atributos_de_cliente()
         self.estabelecer_conexao_com_servidor()
         self.receber_informacao_da_porta_de_origem()
-        # self.criar_threads_de_comunicacao()
+        self.criar_threads_de_comunicacao()
 
     def criar_atributos_de_cliente(self):
         self.cliente = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -28,7 +28,7 @@ class ClienteGUI:
         self.ip_de_destino = "26.209.24.137" # Trocar pelo IP do outro cliente
         self.porta_de_origem = -1 # O servidor envia essa informação durante a conexão
         self.porta_de_destino = 65432
-        self.comprimento_do_buffer = 10000
+        self.comprimento_do_buffer = 10000000
         self.num_de_sequencia_atual = 0
         self.reenvio = False
         self.tempo_de_reenvio = 3
@@ -53,6 +53,12 @@ class ClienteGUI:
     def criar_threads_de_comunicacao(self):
         thread1 = threading.Thread(target=self.receber_mensagens)
         thread1.start()
+    
+    def criar_thread_de_mensagem_local(self):
+        self.thread_de_mensagem_local = threading.Thread(target = self.criar_balao_de_mensagem_local)
+
+    def criar_thread_de_mensagem_remota(self):
+        self.thread_de_mensagem_remota = threading.Thread(target = self.criar_balao_de_mensagem_remoto)
 
     def atualizar_num_de_sequencia(self):
         self.num_de_sequencia_atual = 0 if self.num_de_sequencia_atual == 1 else 1
@@ -126,22 +132,22 @@ class ClienteGUI:
         self.botao_de_anexar_imagem.grid(row = 0)
 
     def criar_botao_de_enviar(self):
-        self.botao_de_anexar_imagem = ttk.Button(self.frame3, text = "Enviar", command = self.enviar_mensagem)
-        self.botao_de_anexar_imagem.grid(row = 1)
+        self.botao_de_enviar = ttk.Button(self.frame3, text = "Enviar", command = self.enviar_mensagem)
+        self.botao_de_enviar.grid(row = 1)
 
     def pegar_mensagem_da_caixa_de_texto(self):
         mensagem = self.caixa_de_texto.get("1.0", tk.END).strip()
         return mensagem
 
     def limpar_caixa_de_texto(self):
-        self.caixa_de_texto.delete("1.0", tk.END)
+        self.caixa_de_texto.delete('1.0', tk.END)
         self.caixa_de_texto.focus()
 
     def enviar_mensagem(self):
         try:
-            self.limpar_caixa_de_texto()
-            self.caixa_de_texto.config(state = "disabled")
+            self.botao_de_enviar.config(state = "disabled")
             self.mensagem_local = self.pegar_mensagem_da_caixa_de_texto()
+            self.limpar_caixa_de_texto()
 
             segmento = Segmento(self.porta_de_origem, self.porta_de_destino, self.mensagem_local, self.num_de_sequencia_atual, 0)
             pacote = Pacote(self.ip_de_origem, self.ip_de_destino, segmento)                
@@ -162,9 +168,10 @@ class ClienteGUI:
                 if self.reenvio:
                     self.cliente.send(pacote_serializado)
                     self.reenvio = False
-
-            self.caixa_de_texto.config(state = "normal")
-            self.caixa_de_texto.focus()
+            
+            self.criar_thread_de_mensagem_local()
+            self.thread_de_mensagem_local.start()
+            self.botao_de_enviar.config(state = "normal")
 
         except Exception as e:
             print(e)
@@ -178,27 +185,23 @@ class ClienteGUI:
             
                 segmento = pacote.retornar_segmento()
                 mensagem_recebida = segmento.retornar_mensagem()
-
+                
                 if mensagem_recebida:
                     self.mensagem_remota = mensagem_recebida
-
-                # Se a mensagem não tiver conteúdo, é um ACK/NACK.
+                
+                # # Se a mensagem não tiver conteúdo, é um ACK/NACK.
                 elif mensagem_recebida == "" and segmento.retornar_ack() == 1:
                     # ack = segmento.retornar_ack()
                     num_de_sequencia = segmento.retornar_num_de_sequencia()
                     
                     # Chegou um ACK. Pacote recebido com sucesso. Mostrar mensagens do buffer e atualizar o número de sequência.
                     if self.num_de_sequencia_atual == num_de_sequencia:
-                        
-                        # Se já tiver alguma mensagem no "buffer" de mensagem
-                        if self.mensagem_local != "":
-                            self.mensagem_gui.criar_balao_de_mensagem(self.mensagem_local, True)
-                            self.mensagem_local = ""
-
                         if self.mensagem_remota != "":
-                            self.mensagem_gui.criar_balao_de_mensagem(self.mensagem_remota, False)
+                            self.criar_thread_de_mensagem_remota()
+                            self.thread_de_mensagem_remota.start()
+                            # self.mensagem_gui.criar_balao_de_mensagem(self.mensagem_remota, False)
                             self.mensagem_remota = ""
-                        
+
                         self.atualizar_num_de_sequencia()
 
                     # Chegou um "NACK". Houve algum problema com o pacote. O pacote deve ser reenviado.
@@ -210,6 +213,12 @@ class ClienteGUI:
                 print('Pressione <Enter> Para continuar...')
                 self.cliente.close()
                 break
+
+    def criar_balao_de_mensagem_local(self):
+        self.mensagem_gui.criar_balao_de_mensagem(self.mensagem_local, True)
+
+    def criar_balao_de_mensagem_remoto(self):
+        self.mensagem_gui.criar_balao_de_mensagem(self.mensagem_remota, False)
 
 if __name__ == "__main__":
     ClienteGUI().janela.mainloop()

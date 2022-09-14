@@ -9,6 +9,8 @@ import time
 from pacote import Pacote
 from segmento import Segmento
 
+from num_ext import NumExt
+
 class ServidorGUI:
     def __init__(self):
         self.criar_widgets()
@@ -27,8 +29,10 @@ class ServidorGUI:
         self.porta_do_servidor = 65432
         self.ultimo_enviado = {}
         self.comprimento_do_buffer = 10000
+        self.contador_de_pacotes = 1
         self.travamento_de_pacotes = True
         self.pacote = None
+        self.escritor_de_numeros = NumExt()
 
     def criar_threads_de_comunicacao(self):
         thread1 = threading.Thread(target=self.aceitar_conexoes)
@@ -98,7 +102,7 @@ class ServidorGUI:
         self.campo_da_mensagem.configure(state = "disabled")
 
     def inserir_mensagem_de_log(self, mensagem):
-        self.campo_de_log.configure(state = "normal")
+        self.campo_de_log.configure(state = "normal")        
         self.campo_de_log.insert(tk.END, f"{mensagem}\n")
         self.campo_de_log.configure(state = "disabled")
 
@@ -121,8 +125,6 @@ class ServidorGUI:
         self.campo_da_mensagem.delete("1.0", tk.END)
         self.campo_da_mensagem.configure(state = "disabled")
 
-    
-
     def mostrar_informacoes_do_pacote(self, pacote):
         if not self.eh_pacote_repetido(pacote):
             self.travamento_de_pacotes = True
@@ -133,6 +135,10 @@ class ServidorGUI:
                 pass
 
     def processar_pacote(self, pacote):
+        self.inserir_mensagem_de_log(f"{self.escritor_de_numeros.escrever_ordinal(self.contador_de_pacotes)} pacote")
+        self.contador_de_pacotes += 1
+        self.inserir_mensagem_de_log("-" * 48)
+
         if self.decisao_de_corrompimento.get() == 0: 
             self.inserir_mensagem_de_log("Pacote não foi corrompido")
 
@@ -171,13 +177,10 @@ class ServidorGUI:
 
 
     def enviar_pacote(self, pacote):
-        # print("g1")
         ip_de_destino = pacote.retornar_ip_de_destino()
         cliente = self.clientes[ip_de_destino][0]
         pacote_serializado = pickle.dumps(pacote)
-        # print("g2")
         cliente.send(pacote_serializado)
-        # print("g3")
 
     def eh_pacote_repetido(self, pacote):
         segmento = pacote.retornar_segmento()
@@ -338,10 +341,6 @@ class ServidorGUI:
     def criar_campo_do_ip_de_origem(self):
         self.campo_do_ip_de_origem = ttk.Entry(self.frame1)
         self.campo_do_ip_de_origem.grid(row = 1, column = 0, padx = 3)
-        self.limpar_campo_do_ip_de_origem()
-
-    def limpar_campo_do_ip_de_origem(self):
-        self.campo_do_ip_de_origem.insert(0, "")
         self.campo_do_ip_de_origem.configure(state = "readonly")
 
     def criar_label_do_ip_de_destino(self):
@@ -351,10 +350,6 @@ class ServidorGUI:
     def criar_campo_do_ip_de_destino(self):
         self.campo_do_ip_de_destino = ttk.Entry(self.frame1)
         self.campo_do_ip_de_destino.grid(row = 1, column = 1, padx = 3)
-        self.limpar_campo_do_ip_de_destino()
-
-    def limpar_campo_do_ip_de_destino(self):
-        self.campo_do_ip_de_destino.insert(0, "")
         self.campo_do_ip_de_destino.configure(state = "readonly")
 
     def criar_label_da_porta_de_origem(self):
@@ -364,10 +359,6 @@ class ServidorGUI:
     def criar_campo_da_porta_de_origem(self):
         self.campo_da_porta_de_origem = ttk.Entry(self.frame2)
         self.campo_da_porta_de_origem.grid(row = 1, column = 0, padx = 3)
-        self.limpar_campo_da_porta_de_origem()
-
-    def limpar_campo_da_porta_de_origem(self):
-        self.campo_da_porta_de_origem.insert(0, "")
         self.campo_da_porta_de_origem.configure(state = "readonly")
 
     def criar_label_da_porta_de_destino(self):
@@ -377,11 +368,7 @@ class ServidorGUI:
     def criar_campo_da_porta_de_destino(self):
         self.campo_da_porta_de_destino = ttk.Entry(self.frame2)
         self.campo_da_porta_de_destino.grid(row = 1, column = 1, padx = 3)
-        self.limpar_campo_da_porta_de_destino()
-
-    def limpar_campo_da_porta_de_destino(self):
-        self.campo_da_porta_de_destino.insert(0, "")
-        self.campo_da_porta_de_destino.configure(state = "readonly")
+        self.campo_da_porta_de_destino.config(state = "readonly")
 
     def criar_label_do_comprimento_do_segmento(self):
         self.label_do_comprimento_do_segmento = ttk.Label(self.frame3, text = "Comprimento", font = ("Arial", 12))
@@ -390,11 +377,7 @@ class ServidorGUI:
     def criar_campo_do_comprimento_do_segmento(self):
         self.campo_do_comprimento_do_segmento = ttk.Entry(self.frame3)
         self.campo_do_comprimento_do_segmento.grid(row = 1, column = 0, padx = 3)
-        self.limpar_campo_do_comprimento_do_segmento()
-
-    def limpar_campo_do_comprimento_do_segmento(self):
-        self.campo_do_comprimento_do_segmento.insert(0, "")
-        self.campo_do_comprimento_do_segmento.configure(state = "readonly")
+        self.campo_do_comprimento_do_segmento.config(state = "readonly")
 
     def criar_label_do_checksum(self):
         self.label_do_checksum = ttk.Label(self.frame3, text = "Checksum", font = ("Arial", 12))
@@ -403,11 +386,7 @@ class ServidorGUI:
     def criar_campo_do_checksum(self):
         self.campo_do_checksum = ttk.Entry(self.frame3)
         self.campo_do_checksum.grid(row = 1, column = 1, padx = 3)
-        self.limpar_campo_do_checksum()
-
-    def limpar_campo_do_checksum(self):
-        self.campo_do_checksum.insert(0, "")
-        self.campo_do_checksum.configure(state = "readonly")
+        self.campo_do_checksum.config(state = "readonly")
 
     def criar_label_da_mensagem(self):
         self.label_da_mensagem = ttk.Label(self.frame4, text = "Mensagem", font = ("Arial", 12))
@@ -416,9 +395,6 @@ class ServidorGUI:
     def criar_campo_da_mensagem(self):
         self.campo_da_mensagem = scrolledtext.ScrolledText(self.frame4, width = 27, height = 1, font = ("Arial", 12), wrap = tk.WORD)
         self.campo_da_mensagem.grid(row = 1, column = 0, columnspan = 2)
-        self.limpar_campo_da_mensagem()
-
-    def limpar_campo_da_mensagem(self):
         self.campo_da_mensagem.config(state = "disabled")
 
     def criar_radiobutton_do_nao_corrompimento(self):
@@ -448,6 +424,7 @@ class ServidorGUI:
     def criar_campo_de_log(self):
         self.campo_de_log = scrolledtext.ScrolledText(self.frame6, width = 27, height = 5, font = ("Arial", 12), wrap = tk.WORD)
         self.campo_de_log.grid(columnspan = 2, pady = 3)
+        self.campo_de_log.config(state = "disabled")
     
 
 if __name__ == "__main__":
