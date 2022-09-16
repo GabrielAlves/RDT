@@ -1,0 +1,8 @@
+{
+    "ip_de_origem": "10.94.14.31",
+    "ip_de_destino": "10.94.14.31",
+    "porta_de_origem": 12345,
+    "porta_de_destino": 12345,
+    "ip_do_servidor": "10.94.14.31",
+    "porta_do_servidor": 54321
+}

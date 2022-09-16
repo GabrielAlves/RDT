@@ -156,25 +156,3 @@ class NumExt:
         numero_com_inicial_maiuscula = inicial_maiuscula + numero_sem_sua_inicial
 
         return numero_com_inicial_maiuscula
-
-if __name__ == "__main__":
-    try:
-        numero = int(input("Digite um número que você deseja escrever por extenso:"))
-
-    except (TypeError, ValueError):
-        print("Por favor, digite um número inteiro.")
-        sys.exit()
-
-    intervalo_valores_permitido = range(MENOR_NUMERO_PERMITIDO, MAIOR_NUMERO_PERMITIDO + 1)
-
-    if numero in intervalo_valores_permitido:
-        num_ext = NumExt()
-        numero_cardinal = num_ext.escrever_cardinal(numero)
-        numero_ordinal = num_ext.escrever_ordinal(numero)
-
-        print(f"Número : {numero}")
-        print(f"Número cardinal : {numero_cardinal}")
-        print(f"Número ordinal : {numero_ordinal}")
-
-    else:
-        print(f"Por favor, digite um número entre {MENOR_NUMERO_PERMITIDO} e {MAIOR_NUMERO_PERMITIDO}")

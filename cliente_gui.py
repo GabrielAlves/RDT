@@ -1,54 +1,60 @@
 import tkinter as tk
 from tkinter import ttk
 from tkinter import scrolledtext
+from tkinter import Menu
 import socket
 import threading
 import pickle
 import time
+import sys
+import json
 
 from segmento import Segmento
 from pacote import Pacote
 
-from mensagem_gui import Mensagem
+from mensagem_de_usuario import MensagemDeUsuario
+from mensagem_de_sistema import MensagemDeSistema
+from config_cli_gui import ConfigCliGUI
 
 class ClienteGUI:
     def __init__(self):
         self.criar_widgets()
-        self.criar_configuracoes_de_comunicacao()
-
-    def criar_configuracoes_de_comunicacao(self):
         self.criar_atributos_de_cliente()
-        self.estabelecer_conexao_com_servidor()
-        self.receber_informacao_da_porta_de_origem()
-        self.criar_threads_de_comunicacao()
+
+    def fazer_bind(self):
+        try:
+            self.cliente.bind((self.ip_de_origem, self.porta_de_origem))
+            self.criar_threads_de_comunicacao()
+
+        except Exception as exception:
+            MensagemDeSistema.criar_mensagem_de_sistema("error", "Não foi possível fazer o bind", exception)
+
+    def atualizar_atributos_de_configuracao_na_classe(self):
+        try:
+            with open("json/config_cli.json", "r") as arquivo:
+                dados_de_configuracao = json.load(arquivo) 
+
+                self.ip_de_origem = dados_de_configuracao["ip_de_origem"]
+                self.ip_de_destino = dados_de_configuracao["ip_de_destino"]
+                self.porta_de_origem = dados_de_configuracao["porta_de_origem"]
+                self.porta_de_destino = dados_de_configuracao["porta_de_destino"]
+                self.ip_do_servidor = dados_de_configuracao["ip_do_servidor"]
+                self.porta_do_servidor = dados_de_configuracao["porta_do_servidor"]
+
+                MensagemDeSistema.criar_mensagem_de_sistema("info", "Sucesso", "Dados de configuração atualizados com sucesso na classe")
+
+        except Exception as exception:
+            MensagemDeSistema.criar_mensagem_de_sistema("error", "Erro ao atualizar configurações", exception)
 
     def criar_atributos_de_cliente(self):
-        self.cliente = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.ip_de_origem = socket.gethostbyname(socket.gethostname())
-        self.ip_de_destino = "26.121.180.116" # Trocar pelo IP do outro cliente
-        self.porta_de_origem = -1 # O servidor envia essa informação durante a conexão
-        self.porta_de_destino = 65432
+        self.cliente = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.comprimento_do_buffer = 10000000
         self.num_de_sequencia_atual = 0
         self.reenvio = False
         self.tempo_de_reenvio = 3
         self.mensagem_local = ""
         self.mensagem_remota = ""
-        self.mensagem_gui = Mensagem(self.janela, self.canvas)
-
-    def estabelecer_conexao_com_servidor(self):
-        ip_do_servidor = "26.97.65.151"
-        porta_do_servidor = 65432
-
-        try:
-            self.cliente.connect((ip_do_servidor, porta_do_servidor))
-
-        except Exception as exception:
-            print(exception)
-            return print('\nNão foi possívvel se conectar ao servidor!\n')
-
-        # self.usuario = input('Usuário> ')
-        print('\nConectado')
+        self.mensagem_de_usuario = MensagemDeUsuario(self.janela, self.canvas)
 
     def criar_threads_de_comunicacao(self):
         thread1 = threading.Thread(target=self.receber_mensagens)
@@ -62,23 +68,10 @@ class ClienteGUI:
 
     def atualizar_num_de_sequencia(self):
         self.num_de_sequencia_atual = 0 if self.num_de_sequencia_atual == 1 else 1
-        
-    def receber_informacao_da_porta_de_origem(self):
-        while True:
-            try:
-                self.porta_de_origem = int(self.cliente.recv(self.comprimento_do_buffer).decode())
-                print(type(self.porta_de_origem))
-                print(self.porta_de_origem)
-                break
-
-            except:
-                print('\nNão foi possível permanecer conectado no servidor!\n')
-                print('Pressione <Enter> Para continuar...')
-                self.cliente.close()
-                break
 
     def criar_widgets(self):
         self.criar_janela()
+        self.criar_menu()
         self.criar_canvas()
         self.criar_frames()
         self.criar_widgets_de_interacao()
@@ -92,7 +85,21 @@ class ClienteGUI:
         self.janela.geometry("400x400")
         self.janela.resizable(False, False)
         self.janela.iconbitmap(self.janela, "img/speech_bubble.ico")
-        # self.janela.config(bg = "lightgray")
+
+    def criar_menu(self):
+        self.criar_barra_de_menu()
+        self.criar_item_de_configuracao()
+
+    def criar_barra_de_menu(self):
+        self.barra_de_menu = Menu(self.janela)
+        self.janela.config(menu = self.barra_de_menu)
+
+    def criar_item_de_configuracao(self):
+        self.item_de_configuracao = Menu(self.barra_de_menu, tearoff = 0)
+        self.item_de_configuracao.add_command(label = "Fazer bind", command = self.fazer_bind)
+        self.item_de_configuracao.add_command(label = "Definir configurações", command = ConfigCliGUI)
+        self.item_de_configuracao.add_command(label = "Atualizar configurações", command = self.atualizar_atributos_de_configuracao_na_classe)
+        self.barra_de_menu.add_cascade(label = "Menu", menu = self.item_de_configuracao)
 
     def criar_frames(self):
         self.criar_frame1()
@@ -110,12 +117,10 @@ class ClienteGUI:
     def criar_frame2(self):
         self.frame2 = ttk.Frame(self.frame1)
         self.frame2.grid(row = 0, column = 0, padx = 1, pady = 1)
-        # self.frame2.grid_columnconfigure(0, weight = 1)
 
     def criar_frame3(self):
         self.frame3 = ttk.Frame(self.frame1)
         self.frame3.grid(row = 0, column = 1, padx = 1, pady = 1)
-        # self.frame2.grid_columnconfigure(0, weight = 1)
 
     def criar_widgets_de_interacao(self):
         self.criar_caixa_de_texto()
@@ -154,7 +159,7 @@ class ClienteGUI:
             pacote = Pacote(self.ip_de_origem, self.ip_de_destino, segmento)                
             pacote_serializado = pickle.dumps(pacote)
 
-            self.cliente.send(pacote_serializado)
+            self.cliente.sendto(pacote_serializado, (self.ip_do_servidor, self.porta_do_servidor))
             num_de_sequencia = self.num_de_sequencia_atual
             tempo_inicial = time.time()
             self.criar_thread_de_mensagem_local()
@@ -169,19 +174,22 @@ class ClienteGUI:
                     tempo_inicial = time.time() # Reinicia temporizador
 
                 if self.reenvio:
-                    self.cliente.send(pacote_serializado)
+                    self.cliente.sendto(pacote_serializado, (self.ip_do_servidor, self.porta_do_servidor))
                     self.reenvio = False
             
             self.botao_de_enviar.config(state = "normal")
 
-        except Exception as e:
-            print(e)
-            return
+        except Exception as exception:
+            MensagemDeSistema.criar_mensagem_de_sistema("error", "Erro ao enviar mensagem", exception)
+            # sys.exit()
 
     def receber_mensagens(self):
         while True:
             try:
-                pacote_serializado = self.cliente.recv(self.comprimento_do_buffer)
+                buffer = self.cliente.recvfrom(self.comprimento_do_buffer)
+                print(buffer)
+                print(type(buffer))
+                pacote_serializado = buffer[0]
                 pacote = pickle.loads(pacote_serializado)
             
                 segmento = pacote.retornar_segmento()
@@ -208,17 +216,15 @@ class ClienteGUI:
                     else:
                         self.reenvio = True
 
-            except:
-                print('\nNão foi possível permanecer conectado no servidor!\n')
-                print('Pressione <Enter> Para continuar...')
-                self.cliente.close()
-                break
+            except Exception as exception:
+                MensagemDeSistema.criar_mensagem_de_sistema("error", "Não foi possível permanecer conectado no servidor", exception)
+                # sys.exit()
 
     def criar_balao_de_mensagem_local(self):
-        self.mensagem_gui.criar_balao_de_mensagem(self.mensagem_local, True)
+        self.mensagem_de_usuario.criar_balao_de_mensagem(self.mensagem_local, True)
 
     def criar_balao_de_mensagem_remoto(self):
-        self.mensagem_gui.criar_balao_de_mensagem(self.mensagem_remota, False)
+        self.mensagem_de_usuario.criar_balao_de_mensagem(self.mensagem_remota, False)
 
 if __name__ == "__main__":
     ClienteGUI().janela.mainloop()

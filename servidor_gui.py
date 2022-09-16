@@ -1,75 +1,92 @@
 import tkinter as tk
 from tkinter import ttk
 from tkinter import scrolledtext
+from tkinter import Menu
 import socket
 import threading
 import pickle
-import time
+import sys
+import json
+
+from config_serv_gui import ConfigServGUI
 
 from pacote import Pacote
 from segmento import Segmento
 
 from num_ext import NumExt
+from mensagem_de_sistema import MensagemDeSistema
 
 class ServidorGUI:
     def __init__(self):
         self.criar_widgets()
-        self.criar_configuracoes_de_comunicacao()
-
-    def criar_configuracoes_de_comunicacao(self):
         self.criar_atributos_do_servidor()
+
+    def criar_menu(self):
+        self.criar_barra_de_menu()
+        self.criar_item_de_configuracao()
+
+    def criar_barra_de_menu(self):
+        self.barra_de_menu = Menu(self.janela)
+        self.janela.config(menu = self.barra_de_menu)
+
+    def preparar_comunicacao(self):
         self.ligar_servidor()
         self.criar_threads_de_comunicacao()
-        # self.aceitar_conexoes()
+
+    def atualizar_atributos_de_configuracao_na_classe(self):
+        try:
+            with open("json/config_serv.json", "r") as arquivo:
+                dados_de_configuracao = json.load(arquivo) 
+
+                self.ip = dados_de_configuracao["ip"]
+                print(self.ip)
+                self.porta = dados_de_configuracao["porta"]
+                print(self.porta)
+
+                MensagemDeSistema.criar_mensagem_de_sistema("info", "Sucesso", "Dados de configuração atualizados com sucesso na classe")
+
+        except Exception as exception:
+            MensagemDeSistema.criar_mensagem_de_sistema("error", "Erro ao atualizar configurações", exception)
+
+    def criar_item_de_configuracao(self):
+        self.item_de_configuracao = Menu(self.barra_de_menu, tearoff = 0)
+        self.item_de_configuracao.add_command(label = "Ligar servidor", command = self.preparar_comunicacao)
+        self.item_de_configuracao.add_command(label = "Definir configurações", command = ConfigServGUI)
+        self.item_de_configuracao.add_command(label = "Atualizar configurações", command = self.atualizar_atributos_de_configuracao_na_classe)
+        self.barra_de_menu.add_cascade(label = "Menu", menu = self.item_de_configuracao)
 
     def criar_atributos_do_servidor(self):
-        self.servidor = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self.clientes = {}
-        self.ip_do_servidor = socket.gethostbyname(socket.gethostname())
-        self.porta_do_servidor = 65432
-        self.ultimo_enviado = {}
+        self.servidor = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        self.ultimo_enviado_com_sucesso = {}
         self.comprimento_do_buffer = 10000
         self.contador_de_pacotes = 1
         self.travamento_de_pacotes = True
         self.pacote = None
-        self.escritor_de_numeros = NumExt()
+        self.escritor_de_numeros = NumExt() 
 
     def criar_threads_de_comunicacao(self):
-        thread1 = threading.Thread(target=self.aceitar_conexoes)
-        thread1.start()
+        thread2 = threading.Thread(target=self.receber_pacote)
+        thread2.start()
 
     def ligar_servidor(self):
         try:
-            self.servidor.bind((self.ip_do_servidor, self.porta_do_servidor))
-            self.servidor.listen()
-            print('Servidor ligado')
-        except:
-            return print('\nNão foi possível iniciar o servidor!\n')
-        
-    def aceitar_conexoes(self):
-        while True:
-            cliente, endereco = self.servidor.accept()
-            self.clientes[endereco[0]] = cliente, None
+            self.servidor.bind((self.ip, self.porta))
+            MensagemDeSistema.criar_mensagem_de_sistema("info", "sucesso", "O servidor está ligado")
 
-            self.enviar_porta_de_origem_para_cliente(cliente)
+        except Exception as exception:
+            MensagemDeSistema.criar_mensagem_de_sistema("error", "Não foi possível iniciar o servidor", exception)
+            sys.exit()
 
-            thread2 = threading.Thread(target=self.receber_pacote, args=[cliente])
-            thread2.start()
-            # self.listar_conectados()
-
-    def enviar_porta_de_origem_para_cliente(self, cliente):
-        porta = str(cliente.getpeername()[1])
-        cliente.send(porta.encode())
-
-    def receber_pacote(self, cliente):
+    def receber_pacote(self):
         while True:
             try:
-                pacote_serializado = cliente.recv(self.comprimento_do_buffer)
+                buffer = self.servidor.recvfrom(self.comprimento_do_buffer)
+                pacote_serializado = buffer[0]
                 pacote = pickle.loads(pacote_serializado)
                 self.mostrar_informacoes_do_pacote(pacote)
         
-            except:
-                # self.remover_cliente(cliente)
+            except Exception as exception:
+                MensagemDeSistema.criar_mensagem_de_sistema("error", "Erro ao receber pacote", exception)
                 break
 
     def preencher_campos(self, pacote):
@@ -130,7 +147,7 @@ class ServidorGUI:
             self.travamento_de_pacotes = True
             self.pacote = pacote
             self.preencher_campos(pacote)
-            
+
             while self.travamento_de_pacotes:
                 pass
 
@@ -159,20 +176,16 @@ class ServidorGUI:
         if self.decisao_da_perda_de_ack.get() == 0:
             self.enviar_pacote(reconhecimento)
             self.inserir_mensagem_de_log("Reconhecimento enviado.")
-            
 
         if self.decisao_de_corrompimento.get() == 0 and self.decisao_da_perda_de_ack.get() == 0:
             self.enviar_pacote(pacote)
-            self.inserir_mensagem_de_log("Pacote enviado pro outro cliente.")
-            
+            self.inserir_mensagem_de_log("Pacote enviado pro outro cliente.")  
 
         elif self.decisao_da_perda_de_ack.get() == 1:
             self.inserir_mensagem_de_log("Reconhecimento não foi enviado.")
-
-        
         
         if self.decisao_de_corrompimento.get() == 0 and self.decisao_da_perda_de_ack.get() == 0:
-            self.salvar_ultimo_enviado(pacote)
+            self.salvar_ultimo_enviado_com_sucesso(pacote)
 
         self.inserir_mensagem_de_log("-" * 48)
 
@@ -180,31 +193,31 @@ class ServidorGUI:
         self.travamento_de_pacotes = False
         self.pacote = None
 
-
-
     def enviar_pacote(self, pacote):
+        segmento = pacote.retornar_segmento()
         ip_de_destino = pacote.retornar_ip_de_destino()
-        cliente = self.clientes[ip_de_destino][0]
+        porta_de_destino = segmento.retornar_porta_de_destino()
         pacote_serializado = pickle.dumps(pacote)
-        cliente.send(pacote_serializado)
+        self.servidor.sendto(pacote_serializado, (ip_de_destino, porta_de_destino))
 
     def eh_pacote_repetido(self, pacote):
         segmento = pacote.retornar_segmento()
         num_de_sequencia = segmento.retornar_num_de_sequencia()
         ip_de_origem = pacote.retornar_ip_de_origem()
+        porta_de_origem = segmento.retornar_porta_de_origem()
 
-        ultimo_pacote_enviado = self.clientes.get(ip_de_origem)[1]
+        ultimo_pacote_enviado = self.ultimo_enviado_com_sucesso.get((ip_de_origem, porta_de_origem))
 
-        if ultimo_pacote_enviado != None:
+        if ultimo_pacote_enviado:
             ultimo_segmento = ultimo_pacote_enviado.retornar_segmento()
             ultimo_num_de_sequencia = ultimo_segmento.retornar_num_de_sequencia()
-
             return ultimo_num_de_sequencia == num_de_sequencia
 
-    def salvar_ultimo_enviado(self, pacote):
+    def salvar_ultimo_enviado_com_sucesso(self, pacote):
+        segmento = pacote.retornar_segmento()
         ip_de_origem = pacote.retornar_ip_de_origem()
-        self.clientes[ip_de_origem] = self.clientes[ip_de_origem][0], pacote
-
+        porta_de_origem = segmento.retornar_porta_de_origem()
+        self.ultimo_enviado_com_sucesso[(ip_de_origem, porta_de_origem)] = pacote
 
     def verificar_checksum(self, pacote):
         segmento = pacote.retornar_segmento()
@@ -213,7 +226,6 @@ class ServidorGUI:
 
         return checksum_do_segmento == checksum_calculado
 
-
     def criar_pacote_de_reconhecimento(self, pacote, eh_ack):
         segmento = pacote.retornar_segmento()
         ip_de_destino = pacote.retornar_ip_de_origem()
@@ -221,12 +233,12 @@ class ServidorGUI:
         num_de_sequencia = segmento.retornar_num_de_sequencia()
         mensagem = ""
         
-        # se nack
+        # se "nack"
         if not eh_ack:
             num_de_sequencia = 0 if num_de_sequencia == 1 else 1
 
         segmento = Segmento(porta_de_origem, porta_de_destino, mensagem, num_de_sequencia, 1)
-        pacote = Pacote(self.ip_do_servidor, ip_de_destino, segmento)
+        pacote = Pacote(self.ip, ip_de_destino, segmento)
         return pacote
 
     def corromper_pacote(self, pacote):
@@ -243,14 +255,13 @@ class ServidorGUI:
 
     def criar_widgets(self):
         self.criar_janela()
+        self.criar_menu()
         self.criar_frames()
         self.criar_widgets_dos_frames()
-        # self.criar_widgets_do_frame2()
 
     def criar_janela(self):
         self.janela = tk.Tk()
-        self.configurar_janela()
-        
+        self.configurar_janela()       
         
     def configurar_janela(self):
         self.janela.title("Monitoramento")
@@ -258,7 +269,6 @@ class ServidorGUI:
         self.janela.resizable(False, False)
         self.janela.columnconfigure(0, weight = 1)
         self.janela.iconbitmap(self.janela, "img/engine.ico")
-        # self.janela.config(bg = "lightgray")
 
     def criar_frames(self):
         self.criar_frame1()
@@ -271,32 +281,26 @@ class ServidorGUI:
     def criar_frame1(self):
         self.frame1 = ttk.Frame(self.janela)
         self.frame1.pack(pady = 3)
-        # self.frame1.grid(row = 0)
 
     def criar_frame2(self):
         self.frame2 = ttk.Frame(self.janela)
         self.frame2.pack(pady = 3)
-        # self.frame2.grid(row = 1)
 
     def criar_frame3(self):
         self.frame3 = ttk.Frame(self.janela)
         self.frame3.pack(pady = 3)
-        # self.frame3.grid(row = 2)
 
     def criar_frame4(self):
         self.frame4 = ttk.Frame(self.janela)
         self.frame4.pack(pady = 3)
-        # self.frame4.grid(row = 3)
     
     def criar_frame5(self):
         self.frame5 = ttk.Frame(self.janela)
         self.frame5.pack(pady = 3)
-        # self.frame5.grid(row = 4)
 
     def criar_frame6(self):
         self.frame6 = ttk.Frame(self.janela)
-        self.frame6.pack(pady = 3)
-        
+        self.frame6.pack(pady = 3)   
 
     def criar_widgets_do_frame1(self):
         self.criar_label_do_ip_de_origem()
