@@ -7,6 +7,7 @@ import threading
 import pickle
 import sys
 import json
+import time
 
 from config_serv_gui import ConfigServGUI
 
@@ -143,13 +144,16 @@ class ServidorGUI:
         self.campo_da_mensagem.configure(state = "disabled")
 
     def mostrar_informacoes_do_pacote(self, pacote):
+        print("g1")
         if not self.eh_pacote_repetido(pacote):
+            print("g2")
             self.travamento_de_pacotes = True
             self.pacote = pacote
             self.preencher_campos(pacote)
-
-            while self.travamento_de_pacotes:
-                pass
+            time.sleep(3)
+            self.processar_pacote(pacote)
+            # while self.travamento_de_pacotes:
+            #     pass
 
     def processar_pacote(self, pacote):
         self.inserir_mensagem_de_log(f"{self.escritor_de_numeros.escrever_ordinal(self.contador_de_pacotes)} pacote")
@@ -163,30 +167,14 @@ class ServidorGUI:
             pacote = self.corromper_pacote(pacote)
             self.inserir_mensagem_de_log("Pacote corrompido")
 
-        checksum_iguais = self.verificar_checksum(pacote)
-
-        if checksum_iguais:
-            reconhecimento = self.criar_pacote_de_reconhecimento(pacote, True)
-            self.inserir_mensagem_de_log("'ACK' criado.")
-
-        else:
-            reconhecimento = self.criar_pacote_de_reconhecimento(pacote, False)
-            self.inserir_mensagem_de_log("'NACK' criado.")
-
-        if self.decisao_da_perda_de_ack.get() == 0:
-            self.enviar_pacote(reconhecimento)
-            self.inserir_mensagem_de_log("Reconhecimento enviado.")
-
-        if self.decisao_de_corrompimento.get() == 0 and self.decisao_da_perda_de_ack.get() == 0:
+        if self.decisao_de_corrompimento.get() == 0 and self.decisao_da_perda_de_pacote.get() == 0:
             self.enviar_pacote(pacote)
             self.inserir_mensagem_de_log("Pacote enviado pro outro cliente.")  
-
-        elif self.decisao_da_perda_de_ack.get() == 1:
-            self.inserir_mensagem_de_log("Reconhecimento não foi enviado.")
-        
-        if self.decisao_de_corrompimento.get() == 0 and self.decisao_da_perda_de_ack.get() == 0:
             self.salvar_ultimo_enviado_com_sucesso(pacote)
 
+        elif self.decisao_da_perda_de_pacote.get() == 1:
+            self.inserir_mensagem_de_log("Pacote foi perdido.")
+        
         self.inserir_mensagem_de_log("-" * 48)
 
         self.limpar_campos()
@@ -246,12 +234,12 @@ class ServidorGUI:
         segmento.trocar_bit_na_mensagem()
         return pacote
 
-    def inicializar_variaveis_do_radiobutton(self):
+    def inicializar_variaveis_do_checkbutton(self):
         self.decisao_de_corrompimento = tk.IntVar()
-        self.decisao_da_perda_de_ack = tk.IntVar()
+        self.decisao_da_perda_de_pacote = tk.IntVar()
 
         self.decisao_de_corrompimento.set(0)
-        self.decisao_da_perda_de_ack.set(0)
+        self.decisao_da_perda_de_pacote.set(0)
 
     def criar_widgets(self):
         self.criar_janela()
@@ -325,12 +313,14 @@ class ServidorGUI:
         self.criar_campo_da_mensagem()
 
     def criar_widgets_do_frame5(self):
-        self.inicializar_variaveis_do_radiobutton()
-        self.criar_radiobutton_do_nao_corrompimento()
-        self.criar_radiobutton_do_corrompimento()
-        self.criar_radiobutton_da_nao_perda_de_ack()
-        self.criar_radiobutton_da_perda_de_ack()
-        self.criar_botao_de_processar()
+        self.inicializar_variaveis_do_checkbutton()
+        self.criar_checkbutton_do_corrompimento()
+        self.criar_checkbutton_da_perda_de_pacote()
+        # self.criar_radiobutton_do_nao_corrompimento()
+        # self.criar_radiobutton_do_corrompimento()
+        # self.criar_radiobutton_da_nao_perda_de_ack()
+        # self.criar_radiobutton_da_perda_de_ack()
+        # self.criar_botao_de_processar()
 
     def criar_widgets_do_frame6(self):
         self.criar_label_do_log()
@@ -407,21 +397,13 @@ class ServidorGUI:
         self.campo_da_mensagem.grid(row = 1, column = 0, columnspan = 2)
         self.campo_da_mensagem.config(state = "disabled")
 
-    def criar_radiobutton_do_nao_corrompimento(self):
-        self.radiobutton_do_nao_corrompimento = ttk.Radiobutton(self.frame5, text = "Não corromper pacote", variable = self.decisao_de_corrompimento, value = 0)
-        self.radiobutton_do_nao_corrompimento.grid(row = 0, column = 0, sticky = tk.W)
+    def criar_checkbutton_do_corrompimento(self):
+        self.checkbutton_do_corrompimento = ttk.Checkbutton(self.frame5, text = "Corromper", variable = self.decisao_de_corrompimento, onvalue = 1, offvalue = 0)
+        self.checkbutton_do_corrompimento.grid(row = 0, column = 0, sticky = tk.W)
 
-    def criar_radiobutton_do_corrompimento(self):
-        self.radiobutton_do_corrompimento = ttk.Radiobutton(self.frame5, text = "Corromper pacote", variable = self.decisao_de_corrompimento, value = 1)
-        self.radiobutton_do_corrompimento.grid(row = 1, column = 0, sticky = tk.W)
-
-    def criar_radiobutton_da_nao_perda_de_ack(self):
-        self.radiobutton_da_nao_perda_de_ack = ttk.Radiobutton(self.frame5, text = "Não perder ACK/NACK", variable = self.decisao_da_perda_de_ack,value = 0)
-        self.radiobutton_da_nao_perda_de_ack.grid(row = 0, column = 1, sticky = tk.W)
-
-    def criar_radiobutton_da_perda_de_ack(self):
-        self.radiobutton_da_perda_de_ack = ttk.Radiobutton(self.frame5, text = "Perder ACK/NACK", variable = self.decisao_da_perda_de_ack, value = 1)
-        self.radiobutton_da_perda_de_ack.grid(row = 1, column = 1, sticky = tk.W)
+    def criar_checkbutton_da_perda_de_pacote(self):
+        self.checkbutton_da_perda_de_pacote = ttk.Checkbutton(self.frame5, text = "Perder pacote", variable = self.decisao_da_perda_de_pacote, onvalue = 1, offvalue = 0)
+        self.checkbutton_da_perda_de_pacote.grid(row = 0, column = 1, sticky = tk.W)
 
     def criar_botao_de_processar(self):
         self.botao_de_processar = ttk.Button(self.frame5, text = "Processar", command = lambda : self.processar_pacote(self.pacote))

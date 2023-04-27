@@ -130,7 +130,7 @@ class ClienteGUI:
     def criar_caixa_de_texto(self):
         self.caixa_de_texto = scrolledtext.ScrolledText(self.frame2, width = 33, height = 1, font = ("Arial", 12), wrap = tk.WORD)
         self.caixa_de_texto.grid()
-        self.caixa_de_texto.focus()
+        self.caixa_de_texto.config(state = "disabled")
 
     def criar_botao_de_anexar_imagem(self):
         self.botao_de_anexar_imagem = ttk.Button(self.frame3, text = "Anexar")
@@ -139,6 +139,7 @@ class ClienteGUI:
 
     def criar_botao_de_enviar(self):
         self.botao_de_enviar = ttk.Button(self.frame3, text = "Enviar", command = self.enviar_mensagem)
+        self.botao_de_enviar.config(state = "disabled")
         self.botao_de_enviar.grid(row = 1)
 
     def pegar_mensagem_da_caixa_de_texto(self):
@@ -151,10 +152,6 @@ class ClienteGUI:
 
     def enviar_mensagem(self):
         try:
-            self.botao_de_enviar.config(state = "disabled")
-            self.mensagem_local = self.pegar_mensagem_da_caixa_de_texto()
-            self.limpar_caixa_de_texto()
-
             segmento = Segmento(self.porta_de_origem, self.porta_de_destino, self.mensagem_local, self.num_de_sequencia_atual, 0)
             pacote = Pacote(self.ip_de_origem, self.ip_de_destino, segmento)                
             pacote_serializado = pickle.dumps(pacote)
@@ -162,22 +159,6 @@ class ClienteGUI:
             self.cliente.sendto(pacote_serializado, (self.ip_do_servidor, self.porta_do_servidor))
             num_de_sequencia = self.num_de_sequencia_atual
             tempo_inicial = time.time()
-            self.criar_thread_de_mensagem_local()
-            self.thread_de_mensagem_local.start()
-
-            # Enquanto o número de sequência atual não mudar, ainda não recebeu ACK. Continuar reenviando o pacote.
-            while num_de_sequencia == self.num_de_sequencia_atual:
-                
-                # Temporizador
-                if time.time() - tempo_inicial >= self.tempo_de_reenvio:
-                    self.reenvio = True
-                    tempo_inicial = time.time() # Reinicia temporizador
-
-                if self.reenvio:
-                    self.cliente.sendto(pacote_serializado, (self.ip_do_servidor, self.porta_do_servidor))
-                    self.reenvio = False
-            
-            self.botao_de_enviar.config(state = "normal")
 
         except Exception as exception:
             MensagemDeSistema.criar_mensagem_de_sistema("error", "Erro ao enviar mensagem", exception)
@@ -187,38 +168,68 @@ class ClienteGUI:
         while True:
             try:
                 buffer = self.cliente.recvfrom(self.comprimento_do_buffer)
-                print(buffer)
-                print(type(buffer))
                 pacote_serializado = buffer[0]
                 pacote = pickle.loads(pacote_serializado)
+                num_de_sequencia = segmento.retornar_num_de_sequencia()
             
                 segmento = pacote.retornar_segmento()
                 mensagem_recebida = segmento.retornar_mensagem()
+
+                if not self.verificar_checksum(pacote) or num_de_sequencia != self.num_de_sequencia_atual:
+                    nack = self.criar_pacote_de_reconhecimento(pacote)
+                    nack_serializado = pickle.dumps(nack)
+                    self.cliente.sendto(nack_serializado, (self.ip_do_servidor, self.porta_do_servidor))
                 
-                if mensagem_recebida:
+                elif mensagem_recebida:
                     self.mensagem_remota = mensagem_recebida
                     self.criar_thread_de_mensagem_remota()
                     self.thread_de_mensagem_remota.start()
-                
-                # # Se a mensagem não tiver conteúdo, é um ACK/NACK.
-                elif mensagem_recebida == "" and segmento.retornar_ack() == 1:
-                    # ack = segmento.retornar_ack()
-                    num_de_sequencia = segmento.retornar_num_de_sequencia()
+                    self.atualizar_num_de_sequencia()
+
+                # # # Se a mensagem não tiver conteúdo, é um ACK/NACK.
+                # elif mensagem_recebida == "" and segmento.retornar_ack() == 1:
+                #     # ack = segmento.retornar_ack()
                     
-                    # Chegou um ACK. Pacote recebido com sucesso. Mostrar mensagens do buffer e atualizar o número de sequência.
-                    if self.num_de_sequencia_atual == num_de_sequencia:
-                        # self.mensagem_gui.criar_balao_de_mensagem(self.mensagem_remota, False)
-                        self.mensagem_remota = ""
+                #     # Chegou um ACK. Pacote recebido com sucesso. Mostrar mensagens do buffer e atualizar o número de sequência.
+                #     if self.num_de_sequencia_atual == num_de_sequencia:
+                #         ack = self.criar_pacote_de_reconhecimento(pacote, True)
+                #         ack_serializado = pickle.dumps(ack)
+                #         self.cliente.sendto(ack_serializado, (self.ip_do_servidor, self.porta_do_servidor))
 
-                        self.atualizar_num_de_sequencia()
+                #         self.atualizar_num_de_sequencia()
 
-                    # Chegou um "NACK". Houve algum problema com o pacote. O pacote deve ser reenviado.
-                    else:
-                        self.reenvio = True
+                #     # Chegou um "NACK". Houve algum problema com o pacote. O pacote deve ser reenviado.
+                #     else:
+                #         nack = self.criar_pacote_de_reconhecimento(pacote)
+                #         nack_serializado = pickle.dumps(nack)
+                #         self.cliente.sendto(nack_serializado, (self.ip_do_servidor, self.porta_do_servidor))
 
             except Exception as exception:
                 MensagemDeSistema.criar_mensagem_de_sistema("error", "Não foi possível permanecer conectado no servidor", exception)
                 # sys.exit()
+
+    def verificar_checksum(self, pacote):
+        segmento = pacote.retornar_segmento()
+        checksum_do_segmento = segmento.retornar_checksum()
+        checksum_calculado = segmento.calcular_checksum(segmento.retornar_mensagem())
+
+        return checksum_do_segmento == checksum_calculado
+
+    def criar_pacote_de_reconhecimento(self, pacote, eh_ack):
+        segmento = pacote.retornar_segmento()
+        ip_de_origem = pacote.retornar_ip_de_destino()
+        ip_de_destino = pacote.retornar_ip_de_origem()
+        porta_de_origem, porta_de_destino = segmento.retornar_porta_de_destino(), segmento.retornar_porta_de_origem()   
+        num_de_sequencia = segmento.retornar_num_de_sequencia()
+        mensagem = ""
+        
+        # se "nack"
+        if not eh_ack:
+            num_de_sequencia = 0 if num_de_sequencia == 1 else 1
+
+        segmento = Segmento(porta_de_origem, porta_de_destino, mensagem, num_de_sequencia, 1)
+        pacote = Pacote(ip_de_origem, ip_de_destino, segmento)
+        return pacote
 
     def criar_balao_de_mensagem_local(self):
         self.mensagem_de_usuario.criar_balao_de_mensagem(self.mensagem_local, True)
